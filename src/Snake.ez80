@@ -1,0 +1,285 @@
+; Made with the help of https://ez80.readthedocs.io/en/latest/tutorial/intro.html
+
+LCD_BUFFER						.equ 0D40000h
+LCD_BUFFER_END					.equ 0D5A3FFh
+LCD_WIDTH						.equ 320
+LCD_HEIGHT						.equ 240
+LCD_AREA						.equ LCD_WIDTH*LCD_HEIGHT
+TILE_WIDTH						.equ 16
+TILE_HEIGHT						.equ 16
+LCD_WIDTH_X_TILE_HEIGHT			.equ LCD_WIDTH*TILE_HEIGHT
+LCD_WIDTH_SUB_TILE_WIDTH		.equ LCD_WIDTH-TILE_WIDTH
+BYTES_PER_PIXEL					.equ 2
+
+LCD_CMD_PORT					.equ 10h
+LCD_DAT_PORT					.equ 11h
+LCD_COLUMN_ADDR					.equ 2Ah
+LCD_PAGE_ADDR					.equ 2Bh
+LCD_START_MEM_WRITE				.equ 2Ch
+
+
+
+Facing.Left						.equ 0h
+Facing.Down						.equ 1h
+Facing.Right					.equ 2h
+Facing.Up						.equ 3h
+
+Type.Head						.equ 0h
+Type.Body						.equ 1h
+Type.End						.equ 2h
+;
+; Structs
+;
+
+; Snake Segment
+SnakeSegment_Size				.equ 0008h
+; Attributes
+SnakeSegment.Facing				.equ 0h
+SnakeSegment.Pos				.equ 1h
+SnakeSegment.Pos.X				.equ 1h
+SnakeSegment.Pos.Y				.equ 2h
+SnakeSegment.Type				.equ 3h
+
+
+
+
+
+#include "D:\TI-84 plus CE\Games\MyGames\ASM\Snake\includes\ti84pce.inc"
+
+; Tells the assembler to assume ADL mode is on(basically 24-bit mode), which is is by default
+.assume ADL=1
+; Tells the assembler this program will be located at userMem-2, so any memory addresses should be relative to that
+; -2 because the program is placed at userMem, but there are 2 bytes that get removed at runtime (or smth like that, idk look at the tutorial)
+.org userMem-2
+	; EQUivalent to Asm84CEPrgm in TI-BASIC
+	.db tExtTok,tAsm84CeCmp
+
+Start:
+	;
+	; Program code
+	;
+
+	; Reset the screen
+	call _homeup
+	call _ClrScrnFull
+
+	call ResetScreen
+	
+	ld hl, Tile1
+	ld ixl, 0
+	xor a
+	call SetTile
+
+	call BlitScreen
+
+
+Main:
+
+	call DrawSnake
+	
+	; Wait for key press
+	call _GetCSC
+	or a
+	call nz, HandleKeyPress
+
+	jr Main
+Exit:
+	; Clear the screen
+	call _ClrLCD
+	call _ClrLCDFull
+	call _ClrScrn
+	call _ClrScrnFull
+
+	; Display "Done" when the program exits
+	; Reset the bit "donePrgm" at byte address (iy+doneFlags), is this case
+	res donePrgm,(iy+doneFlags)
+
+
+	call _JForceCmdNoChar
+	; Exits the program (usually)
+	ret
+
+;
+; Params:
+; 	- a: keycode
+;
+HandleKeyPress:
+
+	cp a, skClear
+	jr z, HandleKeyPress.Clear
+	cp a, skUp
+	jr z, HandleKeyPress.Up
+	cp a, skDown
+	jr z, HandleKeyPress.Down
+	cp a, skLeft
+	jr z, HandleKeyPress.Left
+	cp a, skRight
+	jr z, HandleKeyPress.Right
+	ret
+HandleKeyPress.Up:
+HandleKeyPress.Down:
+HandleKeyPress.Left:
+HandleKeyPress.Right:
+	ret
+HandleKeyPress.Clear:
+	call Exit
+
+
+
+;
+; Draws the snake to the LCD_BUFFER
+;
+DrawSnake:
+	ld hl, Snake
+DrawSegment:
+	ld iy, (hl)
+	ld bc, (iy+SnakeSegment.Facing)
+	ld ixl, b
+	cp a, Facing.Up
+	jr z, DrawSegment.Up
+	cp a, Facing.Down
+	jr z, DrawSegment.Down
+	cp a, Facing.Left
+	jr z, DrawSegment.Left
+	cp a, Facing.Right
+	jr z, DrawSegment.Right
+	
+DrawSegment.Up:
+DrawSegment.Down:
+	ld hl, Tile2
+	jr DrawSegment.Done
+DrawSegment.Left:
+DrawSegment.Right:
+	ld hl, tile5
+	jr DrawSegment.Done
+DrawSegment.Done:
+	call SetTile
+	ret
+
+
+
+
+;
+; Resets the screen to all black
+;
+ResetScreen:
+	ld hl, LCD_BUFFER
+	ld bc, LCD_AREA*BYTES_PER_PIXEL
+RestScreen.clearLoop:
+    ld (hl), 0
+    inc hl
+    dec bc
+	; Check of bc is zero
+	ld (Data), bc							; bc is 24-bit so I have to load it into memory, then load each bit seperately and or them all together
+	ld a, (Data+2)
+	or b
+	or c
+    jr nz, RestScreen.clearLoop
+	call BlitScreen
+	ret
+
+;
+; Blits the frame buffer to the screen
+;
+BlitScreen:
+	call $4544    ; _BlitLCD BCALL address for OS 5.8.x
+	ret
+
+;
+; Moves a given tile into the given render buffer
+; Params:
+; - hl: Pointer to Tile
+; - ixl: x pos to place the top left of the tile at
+; - a: y pos to place the top left of the tile at
+;
+SetTile:
+	ld de, LCD_BUFFER
+
+	push hl										; Save hl
+
+	ld bc, LCD_WIDTH_X_TILE_HEIGHT*BYTES_PER_PIXEL
+	call mul									; yPos * TILE_WIDTH * LCD_WIDTH
+
+	add hl, de									; Add y offset to *RENDER_BUFFER
+	ex de, hl
+
+	ld a, ixl
+	ld bc, TILE_WIDTH*BYTES_PER_PIXEL
+	call mul									; xPos * TILE_WIDTH
+
+	add hl, de									; Add x offset to *RENDER_BUFFER
+	ex de, hl
+
+	pop hl										; Restore hl
+
+	ld a, TILE_HEIGHT
+
+	ld bc, TILE_WIDTH*BYTES_PER_PIXEL
+	; Double bc because there's 2 bytes/pixel
+	;sla c
+	;rl b
+	push bc
+SetTile.loop:
+	pop bc
+	push bc
+	; Copy memory
+	ldir										; Copy 1 row of data from tile buffer to RENDER_BUFFER
+
+	push hl										; Start de += (LCD_WIDTH_SUB_TILE_WIDTH - 1)
+	ld hl, LCD_WIDTH_SUB_TILE_WIDTH*BYTES_PER_PIXEL		; -1 because the buffers are 0-based
+	add hl, de
+	ex de, hl
+	pop hl										; End de += (LCD_WIDTH_SUB_TILE_WIDTH - 1)
+
+	dec a
+	or a
+	jr nz, SetTile.loop
+	pop bc
+	ret
+
+
+;
+; Params:
+;   A = first number
+;   BC = second number
+; Output:
+;   HL = 16-bit result
+;
+mul:
+    ld hl, 0
+mul.loop:
+	; Half a
+	srl a										; Shift a right
+	push af
+	and 1
+	pop af
+	jr z, mul.even								; If a is odd, make it even
+	sub 1
+	add hl, bc
+mul.even:
+	or a
+	ret z
+	; Double bc
+	sla b										; Shift b left
+	rl c										; Shift c left using carry
+
+
+
+TutorialText:
+	.db "Hello, World!", 0h
+
+BlackTile:
+	; 256 FFs 
+	.fill 512, 0		; Doesn't work with hex values
+WhiteTile:
+	; 256 FFs 
+	.fill 512, 255		; Doesn't work with hex values
+
+#include "D:\TI-84 plus CE\Games\MyGames\ASM\Snake\src\img\bitMap.txt"
+Data:
+	.fill 64, 0
+Snake:
+	.fill 3*LCD_AREA,							; *SnakeSegment[LCD_AREA]
+Segments:
+	.fill SnakeSegment_Size*LCD_AREA,0			; SnakeSegment[LCD_AREA]
+
