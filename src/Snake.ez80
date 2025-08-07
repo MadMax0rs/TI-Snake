@@ -40,11 +40,28 @@ SnakeSegment.Pos.X				.equ 1h
 SnakeSegment.Pos.Y				.equ 2h
 SnakeSegment.Type				.equ 3h
 
+BlackTile						.equ 0h
+Apple							.equ 200h
+BodyVertical					.equ 400h
+RightToUp						.equ 600h
+LeftToUp						.equ 800h
+BodyHorizontal					.equ A00h
+BottomToRight					.equ C00h
+BottomToLeft					.equ E00h
+HeadUp							.equ 1000h
+HeadDown						.equ 1200h
+HeadLeft						.equ 1400h
+HeadRight						.equ 1600h
+TailUp							.equ 1800h
+TailDown						.equ 1A00h
+TailLeft						.equ 1C00h
+TailRight						.equ 1E00h
 
 
 
 
-#include "D:\TI-84 plus CE\Games\MyGames\ASM\Snake\includes\ti84pce.inc"
+
+#include "D:\TI-84PlusCE\Games\MyGames\ASM\Snake\includes\ti84pce.inc"
 
 ; Tells the assembler to assume ADL mode is on(basically 24-bit mode), which is is by default
 .assume ADL=1
@@ -64,8 +81,13 @@ Start:
 	call _ClrScrnFull
 
 	call ResetScreen
+
+
+	call _FindSym
 	
-	ld hl, Tile1
+	ld hl, AppVarPointer
+	ld de, Apple
+	add hl, de
 	ld ixl, 0
 	xor a
 	call SetTile
@@ -83,6 +105,7 @@ Main:
 	call nz, HandleKeyPress
 
 	jr Main
+
 Exit:
 	; Clear the screen
 	call _ClrLCD
@@ -135,6 +158,9 @@ DrawSegment:
 	ld iy, (hl)
 	ld bc, (iy+SnakeSegment.Facing)
 	ld ixl, b
+
+	ld hl, AppVarPointer
+
 	cp a, Facing.Up
 	jr z, DrawSegment.Up
 	cp a, Facing.Down
@@ -146,11 +172,13 @@ DrawSegment:
 	
 DrawSegment.Up:
 DrawSegment.Down:
-	ld hl, Tile2
+	ld bc, BodyVertical
+	add hl, bc
 	jr DrawSegment.Done
 DrawSegment.Left:
 DrawSegment.Right:
-	ld hl, tile5
+	ld bc, BodyHorizontal
+	add hl, bc
 	jr DrawSegment.Done
 DrawSegment.Done:
 	call SetTile
@@ -265,17 +293,17 @@ mul.even:
 
 
 
-TutorialText:
-	.db "Hello, World!", 0h
-
-BlackTile:
-	; 256 FFs 
-	.fill 512, 0		; Doesn't work with hex values
+ErrorAppVarNotFound:
+	.db "ERROR, AppVar not found", 0h
 WhiteTile:
 	; 256 FFs 
 	.fill 512, 255		; Doesn't work with hex values
-
-#include "D:\TI-84 plus CE\Games\MyGames\ASM\Snake\src\img\bitMap.txt"
+AppVarName:
+	; Length of name, "NAME"
+	.db 8. "SNKSKNDF"
+AppVarPointer:
+	.fill 3, 0
+;#include "D:\TI-84PlusCE\Games\MyGames\ASM\Snake\src\img\bitMap.txt"
 Data:
 	.fill 64, 0
 Snake:

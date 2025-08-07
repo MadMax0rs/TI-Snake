@@ -25,34 +25,24 @@ if len(sys.argv) < 3 or sys.argv[1] in ("-h", "-?"):
 FilePath = sys.argv[1]
 # Name of the AppVar of the calculator
 OnCalcName = sys.argv[2]
+OnCalcName = OnCalcName.upper()
 
-with open(sys.argv[1]) as file:
+with open(f"./src/img/{sys.argv[1]}", "rb") as file:
 	Data = file.read()
 
 if len(Data) > 0xFFFF:
 	print("File is too large! Max file size is 64KB")
 	quit()
-
-# The whole point of the checksum is that it should overflow,
-# so temporarily disable the warning
-np.seterr(over='ignore')
-
-# Calculate the Checksum for the end of the file
-tempSum: np.uint16 = np.uint16(0)
-for byte in [np.uint16(ord(c)) for c in Data]:
-	tempSum += byte
-
-# If something else overflows, it's an error, so tell it to warn again
-np.seterr(over='warn')
-
-# Idk if the numpy uint16.tobytes() function works
-# how I want it and im too lazy to test
-Checksum: bytes = int(tempSum).to_bytes(2, 'little')
+if len(OnCalcName) > 8:
+	print("OnCalcName is too large! (Max 8 characters)")
+	quit()
 
 
 
 
-OutputFilePath: str = f"{Path(FilePath).parent}\\{OnCalcName}.8xv"
+
+
+OutputFilePath: str = f"./src/img/{OnCalcName}.8xv"
 
 with open(OutputFilePath, "wb") as file:
 	# DISCLAIMER: Some bytes are duplicated throughout the the file,
@@ -66,52 +56,104 @@ with open(OutputFilePath, "wb") as file:
 	# so strings has to be encoded to a byte string
 
 	# Magic Number + 42 bytes(for a comment padded with 0s but I'm putting no comment)
-	file.write(f"**TI83F*{"\x00"*42}".encode())
+	file.write(f"**TI83F*\x1A\x0A\x00{"\x00"*42}".encode())
 
 	# Data length + VarEntryData(17) + 2 bytes containing the length of the data
-	ByteStr = (len(Data) + 17 + 2).to_bytes(2, "little")
-	file.write(ByteStr)
-	file.write(ByteStr)
+	ByteStr = (len(Data) + 17).to_bytes(2, "little")
+	file.write(ByteStr)	
 
-	# Tells TI-Connect that It's an AppVar
-	file.write(b'\0x15')
+	# Used to calculate the Checksum
+	VarData = (
+		# Entry Signature
+		b'\x0D\x00' +
+		# Var Data Length
+		len(Data).to_bytes(2, "little") +
+		# Tells TI-Connect that It's an AppVar
+		b'\x15' +
+		# Name of the AppVar on the calculator(8 bytes of ASCII padded with 0s)
+		OnCalcName.encode("ascii") + b'\x00'*(8 - len(OnCalcName)) + 
+		# Version and Flag
+		b'\x00\x00' + 
+		# Var Data Length (again)
+		len(Data).to_bytes(2, "little") +
+		# Your Data 
+		Data)
+	file.write(VarData)
 
-	# Name of the AppVar on the calculator(ASCII padded with 0s)
-	file.write(OnCalcName.encode("ascii"))
+	
+	# Calculate the Checksum for the end of the file
+	tempSum: int = 0
+	for byte in VarData:
+		# byte is an int for some reason, but that makes
+		# it easier for me so im not complaining
+		tempSum += byte
+		tempSum &= 0xFFFF
 
-	# Data length + 2 bytes containing the length of the data
-	ByteStr = (len(Data) + 2).to_bytes(2, "little")
-	file.write(ByteStr)
-
-	# Legnth of the actual data
-	ByteStr = (len(Data)).to_bytes(2, "little")
-	file.write(ByteStr)
-
-	# 2 bytes containing the length of the data (referenced a couple
-	# times earlier in the code, now yk what im talking about)
-	ByteStr = (len(Data)).to_bytes(2, "little")
-	file.write(ByteStr)
-
-	# Your data
-	file.write(Data.encode())
+	Checksum: bytes = tempSum.to_bytes(2, 'little')
 
 	# Checksum to verify that the data wasn't corrupted during the transfer
 	file.write(Checksum)
 
 
+# https://merthsoft.com/linkguide/ti83+/packet.html#varheader
 
 # File Structure:
 
 # | Section             | Offset | Size     | Notes                     |
 # | ------------------- | ------ | -------- | ------------------------- |
-# | File Magic          | 0x00   | 8 bytes  | **TI83F*                  |
-# | Comment             | 0x08   | 42 bytes | Optional, fill with 0x00  |
-# | Entry Length        | 0x32   | 2 bytes  | 17 + (data length + 2)    |
-# | Entry Length (copy) | 0x34   | 2 bytes  | Same as above             |
-# | Var Type            | 0x36   | 1 byte   | 0x15 for AppVar           |
-# | Var Name            | 0x37   | 8 bytes  | ASCII, padded with 0x00   |
-# | Data Size + 2       | 0x3F   | 2 bytes  | length + 2                |
-# | Data Size           | 0x41   | 2 bytes  | length                    |
-# | Prefix              | 0x43   | 2 bytes  | Little-endian length      |
-# | Data                | 0x45   | N bytes  | Your actual data          |
+# | File Signature1     | 0x00   | 8 bytes  | **TI83F*                  |
+# | File Signature2     | 0x08   | 3 bytes  | 1A 0A 00                  |
+# | Comment             | 0x0B   | 42 bytes | Optional, fill with 0x00  |
+# | Data Section Length | 0x35   | 2 bytes  | File size(in bytes) - 57  |
+# | Data Section        | 0x37   | n bytes  | Contains 1 or more entries|
 # | Checksum            | END    | 2 bytes  | Sum from 0x37 to data end |
+
+
+# Type IDs
+# | Name                                    | ID     |
+# | ----------------------------------------| ------ |
+# | AppVar                                  | 0x15   |
+# | Real Number								| 0x00   |
+# | Real List								| 0x01   |
+# | Matrix									| 0x02   |
+# | Y-Variable								| 0x03   |
+# | String									| 0x04   |
+# | Program									| 0x05   |
+# | Edit-locked Program						| 0x06   |
+# | Picture									| 0x07   |
+# | GDB										| 0x08   |
+# | Window Settings							| 0x0B   |
+# | Complex Number							| 0x0C   |
+# | Complex List							| 0x0D   |
+# | Window Settings							| 0x0F   |
+# | Saved Window Settings					| 0x10   |
+# | Table Setup								| 0x11   |
+# | Backup									| 0x13   |
+# | Used to delete a FLASH application		| 0x14   |
+# | Application Variable					| 0x15   |
+# | Group Variable							| 0x17   |
+# | Directory								| 0x19   |
+# | FLASH Operating System					| 0x23   |
+# | FLASH Application						| 0x24   |
+# | ID list									| 0x26   |
+# | Get Certificate							| 0x27   |
+# | Clock									| 0x29   |
+
+
+
+
+
+# Entry Structure:
+# For the Entry Signature, if you use 0B, there will(apparently) be no Version,
+# and no Flag. For simplicity, I will just use 0D.
+
+# | Section             | Offset | Size     | Notes                     |
+# | ------------------- | ------ | -------- | ------------------------- |
+# | Entry Signature     | 0x00   | 2 bytes  | 0Bh or 0Dh                |
+# | Var Data Length     | 0x02   | 2 bytes  | Byte length of var data   |
+# | Type ID             | 0x04   | 1 bytes  | See Type ID table above   |
+# | Var Name            | 0x05   | 8 bytes  | Pad with NULL on right    |
+# | Version             | 0x0D   | 1 bytes  | Can just be 0             |
+# | Flag                | 0x0E   | 1 bytes  | 80h=Archived, 0=other     |
+# | Var Data Length     | 0x0F   | 2 bytes  | Same as at offset 0x02    |
+# | Var Data            | 0x11   | n bytes  | Your Data                 

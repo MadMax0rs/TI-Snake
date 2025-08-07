@@ -65,7 +65,7 @@ def PickInstruction(currentByte: np.uint8, numBytes: int, currentStr: str) -> st
 OutStrs: str = ""
 AppVarStr: str = ""
 
-Atlas = Image.open("D:\\TI-84 plus CE\\Games\\MyGames\\ASM\\Snake\\src\\img\\tileset.png")
+Atlas = Image.open("D:\\TI-84PlusCE\\Games\\MyGames\\ASM\\Snake\\src\\img\\tileset.png")
 
 # Put the RGBA data into a 3-dimensional array.
 # ex. pixelData[pixelX, pixelY, ColorChannel]
