@@ -133,7 +133,7 @@ for x in range(0, TILE_SIZE * ATLAS_SIZE, TILE_SIZE):
 
 
 # Output to a bin file to be converted to an AppVar
-with open("src/img/SNKSKNDF.bin", "w") as file:
+with open("src/img/SNKSKN.bin", "w") as file:
 	file.write(AppVarStr)
 
 

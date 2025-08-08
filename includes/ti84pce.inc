@@ -19,6 +19,10 @@
 #define EQU .equ
 #define end .end
 #define END .end
+#define db .db
+#define DB .db
+#define fill .fill
+#define FILL .fill
 
 ; Hardware Defines
 ;------------------------------

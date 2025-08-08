@@ -1,64 +1,65 @@
 ; Made with the help of https://ez80.readthedocs.io/en/latest/tutorial/intro.html
 
-LCD_BUFFER						.equ 0D40000h
-LCD_BUFFER_END					.equ 0D5A3FFh
-LCD_WIDTH						.equ 320
-LCD_HEIGHT						.equ 240
-LCD_AREA						.equ LCD_WIDTH*LCD_HEIGHT
-TILE_WIDTH						.equ 16
-TILE_HEIGHT						.equ 16
-LCD_WIDTH_X_TILE_HEIGHT			.equ LCD_WIDTH*TILE_HEIGHT
-LCD_WIDTH_SUB_TILE_WIDTH		.equ LCD_WIDTH-TILE_WIDTH
-BYTES_PER_PIXEL					.equ 2
+LCD_BUFFER						equ 0D40000h
+LCD_BUFFER_END					equ 0D5A3FFh
+LCD_WIDTH						equ 320
+LCD_HEIGHT						equ 240
+LCD_AREA						equ LCD_WIDTH*LCD_HEIGHT			; 76800
+LCD_WIDTH_X_TILE_HEIGHT			equ LCD_WIDTH*TILE_HEIGHT
+LCD_WIDTH_SUB_TILE_WIDTH		equ LCD_WIDTH-TILE_WIDTH
+BYTES_PER_PIXEL					equ 2
 
-LCD_CMD_PORT					.equ 10h
-LCD_DAT_PORT					.equ 11h
-LCD_COLUMN_ADDR					.equ 2Ah
-LCD_PAGE_ADDR					.equ 2Bh
-LCD_START_MEM_WRITE				.equ 2Ch
+TILE_WIDTH						equ 16
+TILE_HEIGHT						equ 16
+TILEMAP_WIDTH					equ LCD_WIDTH/TILE_WIDTH			; 20
+TILEMAP_HEIGHT					equ LCD_HEIGHT/TILE_HEIGHT			; 15
+TILEMAP_AREA					equ TILEMAP_WIDTH*TILEMAP_HEIGHT	; 300
+
+LCD_CMD_PORT					equ 10h
+LCD_DAT_PORT					equ 11h
+LCD_COLUMN_ADDR					equ 2Ah
+LCD_PAGE_ADDR					equ 2Bh
+LCD_START_MEM_WRITE				equ 2Ch
 
 
 
-Facing.Left						.equ 0h
-Facing.Down						.equ 1h
-Facing.Right					.equ 2h
-Facing.Up						.equ 3h
+Facing.Left						equ 0h
+Facing.Down						equ 1h
+Facing.Right					equ 2h
+Facing.Up						equ 3h
 
-Type.Head						.equ 0h
-Type.Body						.equ 1h
-Type.End						.equ 2h
+Type.Head						equ 0h
+Type.Body						equ 1h
+Type.Tail						equ 2h
 ;
 ; Structs
 ;
 
 ; Snake Segment
-SnakeSegment_Size				.equ 0008h
+SnakeSegment_Size				equ 4		; 1+1+1+1=4
 ; Attributes
-SnakeSegment.Facing				.equ 0h
-SnakeSegment.Pos				.equ 1h
-SnakeSegment.Pos.X				.equ 1h
-SnakeSegment.Pos.Y				.equ 2h
-SnakeSegment.Type				.equ 3h
+SnakeSegment.Facing				equ 0		; 1 byte
+SnakeSegment.Pos				equ 1
+SnakeSegment.Pos.X				equ 1		; 1 byte
+SnakeSegment.Pos.Y				equ 2		; 1 byte
+SnakeSegment.Type				equ 3		; 1 byte
 
-BlackTile						.equ 0h
-Apple							.equ 200h
-BodyVertical					.equ 400h
-RightToUp						.equ 600h
-LeftToUp						.equ 800h
-BodyHorizontal					.equ A00h
-BottomToRight					.equ C00h
-BottomToLeft					.equ E00h
-HeadUp							.equ 1000h
-HeadDown						.equ 1200h
-HeadLeft						.equ 1400h
-HeadRight						.equ 1600h
-TailUp							.equ 1800h
-TailDown						.equ 1A00h
-TailLeft						.equ 1C00h
-TailRight						.equ 1E00h
-
-
-
+BlackTile						equ 0h
+Apple							equ 200h
+BodyVertical					equ 400h
+RightToUp						equ 600h
+LeftToUp						equ 800h
+BodyHorizontal					equ A00h
+BottomToRight					equ C00h
+BottomToLeft					equ E00h
+HeadUp							equ 1000h
+HeadDown						equ 1200h
+HeadLeft						equ 1400h
+HeadRight						equ 1600h
+TailUp							equ 1800h
+TailDown						equ 1A00h
+TailLeft						equ 1C00h
+TailRight						equ 1E00h
 
 
 #include "D:\TI-84PlusCE\Games\MyGames\ASM\Snake\includes\ti84pce.inc"
@@ -79,11 +80,10 @@ Start:
 	; Reset the screen
 	call _homeup
 	call _ClrScrnFull
-
+	
 	call ResetScreen
 
-
-	call _FindSym
+	call GetAppVar
 	
 	ld hl, AppVarPointer
 	ld de, Apple
@@ -106,6 +106,13 @@ Main:
 
 	jr Main
 
+ErrorAppVarNotFound:
+	ld hl, ErrorAppVarNotFoundStr
+	call _PutS
+	jr Error
+
+Error:
+	call _GetKey
 Exit:
 	; Clear the screen
 	call _ClrLCD
@@ -121,6 +128,30 @@ Exit:
 	call _JForceCmdNoChar
 	; Exits the program (usually)
 	ret
+
+
+;
+; Gets AppVar stored in AppVarName
+;
+GetAppVar:
+	ld hl, AppVarName
+	call _Mov9ToOP1
+
+	call _ChkFindSym
+	jr c, ErrorAppVarNotFound
+
+	; Check if AppVar is in RAM
+	ld (Data+2), bc
+	ld a, (Data)
+	or a
+	jr nz, GetAppVar.Unarchive
+	; Pointer to AppVar Data Section stored in de
+	ld (AppVarPointer), de
+	ret
+GetAppVar.Unarchive:
+	call _Arc_Unarc
+	; Re-lookup pointers
+	jr GetAppVar
 
 ;
 ; Params:
@@ -293,21 +324,40 @@ mul.even:
 
 
 
-ErrorAppVarNotFound:
+ErrorAppVarNotFoundStr:
 	.db "ERROR, AppVar not found", 0h
-WhiteTile:
-	; 256 FFs 
-	.fill 512, 255		; Doesn't work with hex values
 AppVarName:
-	; Length of name, "NAME"
-	.db 8. "SNKSKNDF"
+	; "VARNAME", 0 (0-padded to 8 bytes), 15h
+	.db 15h, "SNKSKN", 0, 0
 AppVarPointer:
 	.fill 3, 0
-;#include "D:\TI-84PlusCE\Games\MyGames\ASM\Snake\src\img\bitMap.txt"
 Data:
 	.fill 64, 0
+SnakeLength:
+	; Little Endian
+	.db 09h, 00h
 Snake:
-	.fill 3*LCD_AREA,							; *SnakeSegment[LCD_AREA]
+
+	.db (Segments+0)
+	.db (Segments+1)
+	.db (Segments+2)
+	.db (Segments+3)
+	.db (Segments+4)
+	.db (Segments+5)
+	.db (Segments+6)
+	.db (Segments+7)
+	.db (Segments+8)
+	.fill 3*(TILEMAP_AREA - 9), 0							; *SnakeSegment[LCD_AREA]
 Segments:
-	.fill SnakeSegment_Size*LCD_AREA,0			; SnakeSegment[LCD_AREA]
+	; Facing, Pos.X, Pos.Y, Type
+	.db Facing.Right, 0, TILEMAP_HEIGHT-1, Type.Tail
+	.db Facing.Right, 1, TILEMAP_HEIGHT-1, Type.Body
+	.db Facing.Right, 2, TILEMAP_HEIGHT-1, Type.Body
+	.db Facing.Right, 3, TILEMAP_HEIGHT-1, Type.Body
+	.db Facing.Right, 4, TILEMAP_HEIGHT-1, Type.Body
+	.db Facing.Right, 5, TILEMAP_HEIGHT-1, Type.Body
+	.db Facing.Right, 6, TILEMAP_HEIGHT-1, Type.Body
+	.db Facing.Right, 7, TILEMAP_HEIGHT-1, Type.Body
+	.db Facing.Right, 8, TILEMAP_HEIGHT-1, Type.Head
+	.fill SnakeSegment_Size*(TILEMAP_AREA - 9), 0			; SnakeSegment[LCD_AREA]
 
