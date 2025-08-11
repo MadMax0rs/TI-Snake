@@ -1,36 +1,30 @@
 ; Made with the help of https://ez80.readthedocs.io/en/latest/tutorial/intro.html
+#include "D:\TI-84PlusCE\Games\MyGames\ASM\Snake\includes\ti84pce.inc"
 
-LCD_BUFFER						equ 0D40000h
-LCD_BUFFER_END					equ 0D5A3FFh
-LCD_WIDTH						equ 320
-LCD_HEIGHT						equ 240
-LCD_AREA						equ LCD_WIDTH*LCD_HEIGHT			; 76800
-LCD_WIDTH_X_TILE_HEIGHT			equ LCD_WIDTH*TILE_HEIGHT
-LCD_WIDTH_SUB_TILE_WIDTH		equ LCD_WIDTH-TILE_WIDTH
-BYTES_PER_PIXEL					equ 2
-
+; Have to be in order where something is defined BEFORE it is used
 TILE_WIDTH						equ 16
 TILE_HEIGHT						equ 16
+LCD_BUFFER						equ $D40000
+LCD_BUFFER_END					equ $D5A3FF
+LCD_WIDTH						equ 320
+LCD_HEIGHT						equ 240
+BYTES_PER_PIXEL					equ 2
+LCD_AREA						equ LCD_WIDTH*LCD_HEIGHT			; 76800
 TILEMAP_WIDTH					equ LCD_WIDTH/TILE_WIDTH			; 20
 TILEMAP_HEIGHT					equ LCD_HEIGHT/TILE_HEIGHT			; 15
 TILEMAP_AREA					equ TILEMAP_WIDTH*TILEMAP_HEIGHT	; 300
 
-LCD_CMD_PORT					equ 10h
-LCD_DAT_PORT					equ 11h
-LCD_COLUMN_ADDR					equ 2Ah
-LCD_PAGE_ADDR					equ 2Bh
-LCD_START_MEM_WRITE				equ 2Ch
 
 
 
-Facing.Left						equ 0h
-Facing.Down						equ 1h
-Facing.Right					equ 2h
-Facing.Up						equ 3h
+Facing.Up						equ %0001
+Facing.Down						equ %0010
+Facing.Left						equ %0100
+Facing.Right					equ %1000
 
-Type.Head						equ 0h
-Type.Body						equ 1h
-Type.Tail						equ 2h
+Type.Head						equ $0
+Type.Body						equ $1
+Type.Tail						equ $2
 ;
 ; Structs
 ;
@@ -44,34 +38,32 @@ SnakeSegment.Pos.X				equ 1		; 1 byte
 SnakeSegment.Pos.Y				equ 2		; 1 byte
 SnakeSegment.Type				equ 3		; 1 byte
 
-BlackTile						equ 0h
-Apple							equ 200h
-BodyVertical					equ 400h
-RightToUp						equ 600h
-LeftToUp						equ 800h
-BodyHorizontal					equ A00h
-BottomToRight					equ C00h
-BottomToLeft					equ E00h
-HeadUp							equ 1000h
-HeadDown						equ 1200h
-HeadLeft						equ 1400h
-HeadRight						equ 1600h
-TailUp							equ 1800h
-TailDown						equ 1A00h
-TailLeft						equ 1C00h
-TailRight						equ 1E00h
+BlackTile						equ $000000
+Apple							equ $000200
+RightToTop						equ $000400
+LeftToTop						equ $000600
+BottomToRight					equ $000800
+BottomToLeft					equ $000A00
+BodyVertical					equ $000C00
+BodyHorizontal					equ $000E00
+HeadUp							equ $001000
+HeadDown						equ $001200
+HeadLeft						equ $001400
+HeadRight						equ $001600
+TailUp							equ $001800
+TailDown						equ $001A00
+TailLeft						equ $001C00
+TailRight						equ $001E00
 
 
-#include "D:\TI-84PlusCE\Games\MyGames\ASM\Snake\includes\ti84pce.inc"
 
-; Tells the assembler to assume ADL mode is on(basically 24-bit mode), which is is by default
+; Tells the assembler to assume ADL mode is on (basically 24-bit mode), which is the default
 .assume ADL=1
 ; Tells the assembler this program will be located at userMem-2, so any memory addresses should be relative to that
 ; -2 because the program is placed at userMem, but there are 2 bytes that get removed at runtime (or smth like that, idk look at the tutorial)
 .org userMem-2
 	; EQUivalent to Asm84CEPrgm in TI-BASIC
 	.db tExtTok,tAsm84CeCmp
-
 Start:
 	;
 	; Program code
@@ -84,22 +76,17 @@ Start:
 	call ResetScreen
 
 	call GetAppVar
-	
-	ld hl, AppVarPointer
-	ld de, Apple
-	add hl, de
-	ld ixl, 0
-	xor a
-	call SetTile
-
-	call BlitScreen
-
 
 Main:
+	ld a, (ExitPrgm)
+	or a
+	jr nz, Exit
 
 	call DrawSnake
 	
-	; Wait for key press
+	;call Test1	; Passed
+
+	; Get key press
 	call _GetCSC
 	or a
 	call nz, HandleKeyPress
@@ -108,26 +95,150 @@ Main:
 
 ErrorAppVarNotFound:
 	ld hl, ErrorAppVarNotFoundStr
-	call _PutS
+	jr Error
+ErrorAppVarArchived:
+	ld hl, ErrorAppVarArchived
 	jr Error
 
 Error:
+	call _PutS
 	call _GetKey
-Exit:
-	; Clear the screen
-	call _ClrLCD
-	call _ClrLCDFull
-	call _ClrScrn
-	call _ClrScrnFull
-
-	; Display "Done" when the program exits
-	; Reset the bit "donePrgm" at byte address (iy+doneFlags), is this case
-	res donePrgm,(iy+doneFlags)
-
-
-	call _JForceCmdNoChar
-	; Exits the program (usually)
+	ld a, 1
+	ld (ExitPrgm), a
 	ret
+
+Exit:
+	; Hand control back over to the OS
+	call _JForceCmdNoChar
+
+	; Exits the program (Usually? idk)
+	ret
+
+
+Test1:
+	ld de, (AppVarPointer)
+	ld hl, Apple
+	add hl, de
+	ld a, 0
+	ld ixl, 1
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, BlackTile
+	add hl, de
+	ld a, 0
+	ld ixl, 2
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, Apple
+	add hl, de
+	ld a, 0
+	ld ixl, 3
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, BodyVertical
+	add hl, de
+	ld a, 0
+	ld ixl, 4
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, RightToTop
+	add hl, de
+	ld a, 0
+	ld ixl, 5
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, LeftToTop
+	add hl, de
+	ld a, 0
+	ld ixl, 6
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, BodyHorizontal
+	add hl, de
+	ld a, 0
+	ld ixl, 7
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, BottomToRight
+	add hl, de
+	ld a, 0
+	ld ixl, 8
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, BottomToLeft
+	add hl, de
+	ld a, 0
+	ld ixl, 9
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, HeadUp
+	add hl, de
+	ld a, 0
+	ld ixl, $0A
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, HeadDown
+	add hl, de
+	ld a, 0
+	ld ixl, $0B
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, HeadLeft
+	add hl, de
+	ld a, 0
+	ld ixl, $0C
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, HeadRight
+	add hl, de
+	ld a, 0
+	ld ixl, $0D
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, TailUp
+	add hl, de
+	ld a, 0
+	ld ixl, $0E
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, TailDown
+	add hl, de
+	ld a, 1
+	ld ixl, 0
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, TailLeft
+	add hl, de
+	ld a, 1
+	ld ixl, 1
+	call SetTile
+
+	ld de, (AppVarPointer)
+	ld hl, TailRight
+	add hl, de
+	ld a, 1
+	ld ixl, 2
+	call SetTile
+
+	call BlitScreen
+
+	ret
+
 
 
 ;
@@ -138,20 +249,22 @@ GetAppVar:
 	call _Mov9ToOP1
 
 	call _ChkFindSym
-	jr c, ErrorAppVarNotFound
+	jp c, ErrorAppVarNotFound
 
 	; Check if AppVar is in RAM
-	ld (Data+2), bc
-	ld a, (Data)
-	or a
-	jr nz, GetAppVar.Unarchive
+	call _ChkInRam
+
+	jp nz, ErrorAppVarArchived
+;	jr nz, GetAppVar.Unarchive
+
 	; Pointer to AppVar Data Section stored in de
 	ld (AppVarPointer), de
 	ret
-GetAppVar.Unarchive:
-	call _Arc_Unarc
-	; Re-lookup pointers
-	jr GetAppVar
+
+; GetAppVar.Unarchive:
+; 	call _Arc_Unarc
+; 	; Re-lookup pointers
+; 	jr GetAppVar
 
 ;
 ; Params:
@@ -176,7 +289,9 @@ HandleKeyPress.Left:
 HandleKeyPress.Right:
 	ret
 HandleKeyPress.Clear:
-	call Exit
+	ld a, 1
+	ld (ExitPrgm), a
+	ret
 
 
 
@@ -184,35 +299,135 @@ HandleKeyPress.Clear:
 ; Draws the snake to the LCD_BUFFER
 ;
 DrawSnake:
-	ld hl, Snake
+	ld iy, 0
+	ld ix, Snake
+	ld bc, (SnakeLength)
+	inc bc
 DrawSegment:
-	ld iy, (hl)
-	ld bc, (iy+SnakeSegment.Facing)
-	ld ixl, b
+	dec bc
+	push bc											; Save bc
 
-	ld hl, AppVarPointer
+	ld iy, (ix)
+	push ix											; Save ix
+	ld a, (iy+SnakeSegment.Type)
+	ld b, (iy+SnakeSegment.Facing)
+
+
+
+	ld hl, (AppVarPointer)
+	ld de, 0
+
+	cp a, Type.Head
+	jr z, DrawSegment.Head
+	cp a, Type.Body
+	jr z, DrawSegment.Body
+
+; Otherwise, Its tail
+	;cp a, Type.Tail
+	;jr z, DrawSegment.Tail
+
+;DrawSegment.Tail:
+	ld de, TailUp-HeadUp
+	add hl, de
+DrawSegment.Head:
+	ld de, HeadUp
+	add hl, de
+
+	ld a, b
+; Decide the direction
+	; Get the size of 1 tile in the AppVar
+	ld bc, TILE_WIDTH*TILE_HEIGHT*BYTES_PER_PIXEL
 
 	cp a, Facing.Up
-	jr z, DrawSegment.Up
+	jr z, DrawSegment.Head_Tail.Up
 	cp a, Facing.Down
-	jr z, DrawSegment.Down
+	jr z, DrawSegment.Head_Tail.Down
 	cp a, Facing.Left
-	jr z, DrawSegment.Left
-	cp a, Facing.Right
-	jr z, DrawSegment.Right
+	jr z, DrawSegment.Head_Tail.Left
+
+; Otherwse, its right		; If Right, it needs to add 3
+	add hl, bc
+DrawSegment.Head_Tail.Left:	; If Left, it needs to add 2
+	add hl, bc
+DrawSegment.Head_Tail.Down:	; If down, it needs to add 1
+	add hl, bc
+DrawSegment.Head_Tail.Up:	; If up, its already there
+	jr DrawSegment.Done
+
 	
-DrawSegment.Up:
-DrawSegment.Down:
-	ld bc, BodyVertical
-	add hl, bc
-	jr DrawSegment.Done
-DrawSegment.Left:
-DrawSegment.Right:
-	ld bc, BodyHorizontal
-	add hl, bc
-	jr DrawSegment.Done
+
+
+
+
+DrawSegment.Body:
+	pop ix
+	push ix											; Get ix and immediately save it again
+	; Get previous segment
+	push iy
+	ld iy, (ix-3)
+	ld a, (iy+SnakeSegment.Facing)
+	pop iy
+	; a = Previous segment direction
+	; b = Current segment direction
+	cp a, b
+	push af											; Save the flags
+
+	; Move the previous segment direction into the high-order 4-bits of a
+	sla a
+	sla a
+	sla a
+	sla a
+	or b
+
+	ld c, a
+	pop af											; Restore the flags
+	ld a, c
+
+	; Do this so that a is still shifted and or-ed
+	jr z, DrawSegment.Equal
+
+	tst a, Facing.Up|(Facing.Down<<4)
+	jr nz, DrawSegment.Body.Up
+	tst a, Facing.Down|(Facing.Up<<4)
+	jr nz, DrawSegment.Body.Down
+
+DrawSegment.Equal:
+	ld de, BodyVertical
+	jr DrawSegment.Body.Next
+
+DrawSegment.Body.Up:
+	ld de, RightToTop
+	jr DrawSegment.Body.Next
+
+DrawSegment.Body.Down:
+	ld de, BottomToRight
+
+DrawSegment.Body.Next:
+	add hl, de
+
+	tst a, Facing.Left|(Facing.Right<<4)
+	jr z, DrawSegment.Done
+
+	ld de, TILE_WIDTH*TILE_HEIGHT*BYTES_PER_PIXEL
+	add hl, de
 DrawSegment.Done:
+	ld a, (iy+SnakeSegment.Pos.X)
+	ld ixl, a
+	ld a, (iy+SnakeSegment.Pos.Y)
 	call SetTile
+	
+	pop ix											; Restore ix
+	; Increment ix to the next pointer for the cycle after this one
+	ld bc, 3
+	add ix, bc
+	pop bc											; Restore bc
+	; If bc == 0, return
+	ld a, b
+	or a
+	jp nz, DrawSegment
+	ld a, c
+	or a
+	jp nz, DrawSegment
 	ret
 
 
@@ -229,7 +444,7 @@ RestScreen.clearLoop:
     inc hl
     dec bc
 	; Check of bc is zero
-	ld (Data), bc							; bc is 24-bit so I have to load it into memory, then load each bit seperately and or them all together
+	ld (Data), bc										; bc is 24-bit so I have to load it into memory, then load each bit seperately and or them all together
 	ld a, (Data+2)
 	or b
 	or c
@@ -246,6 +461,7 @@ BlitScreen:
 
 ;
 ; Moves a given tile into the given render buffer
+; Destroys: de, bc
 ; Params:
 ; - hl: Pointer to Tile
 ; - ixl: x pos to place the top left of the tile at
@@ -254,41 +470,45 @@ BlitScreen:
 SetTile:
 	ld de, LCD_BUFFER
 
-	push hl										; Save hl
+	push hl												; Save hl
+	push ix
 
-	ld bc, LCD_WIDTH_X_TILE_HEIGHT*BYTES_PER_PIXEL
-	call mul									; yPos * TILE_WIDTH * LCD_WIDTH
+	ld bc, LCD_WIDTH*TILE_HEIGHT*BYTES_PER_PIXEL
+	push de
+	call mul											; yPos * TILE_HEIGHT * LCD_WIDTH
+	pop de
 
-	add hl, de									; Add y offset to *RENDER_BUFFER
+	add hl, de											; Add y offset to *RENDER_BUFFER
 	ex de, hl
-
+	
+	pop ix
 	ld a, ixl
 	ld bc, TILE_WIDTH*BYTES_PER_PIXEL
-	call mul									; xPos * TILE_WIDTH
+	push de
+	call mul											; xPos * TILE_WIDTH
+	pop de
 
-	add hl, de									; Add x offset to *RENDER_BUFFER
+	add hl, de											; Add x offset to *RENDER_BUFFER
 	ex de, hl
 
-	pop hl										; Restore hl
+	pop hl												; Restore hl
 
 	ld a, TILE_HEIGHT
 
 	ld bc, TILE_WIDTH*BYTES_PER_PIXEL
-	; Double bc because there's 2 bytes/pixel
-	;sla c
-	;rl b
 	push bc
 SetTile.loop:
 	pop bc
 	push bc
 	; Copy memory
-	ldir										; Copy 1 row of data from tile buffer to RENDER_BUFFER
+	ldir												; Copy 1 row of data from tile buffer to RENDER_BUFFER
 
-	push hl										; Start de += (LCD_WIDTH_SUB_TILE_WIDTH - 1)
-	ld hl, LCD_WIDTH_SUB_TILE_WIDTH*BYTES_PER_PIXEL		; -1 because the buffers are 0-based
+	; Move down 1 line to the begnning of the Tile
+	push hl												; Start de += (LCD_WIDTH_SUB_TILE_WIDTH - 1)
+	ld hl, (LCD_WIDTH-TILE_WIDTH)*BYTES_PER_PIXEL		; -1 because the buffers are 0-based
 	add hl, de
 	ex de, hl
-	pop hl										; End de += (LCD_WIDTH_SUB_TILE_WIDTH - 1)
+	pop hl												; End de += (LCD_WIDTH_SUB_TILE_WIDTH - 1)
 
 	dec a
 	or a
@@ -298,55 +518,113 @@ SetTile.loop:
 
 
 ;
+; Multiplies usinga variation of the double and half strategy
+; Destroys: de, ix
 ; Params:
 ;   A = first number
 ;   BC = second number
 ; Output:
-;   HL = 16-bit result
+;   HL = 24-bit result
 ;
 mul:
-    ld hl, 0
-mul.loop:
-	; Half a
-	srl a										; Shift a right
-	push af
-	and 1
-	pop af
-	jr z, mul.even								; If a is odd, make it even
-	sub 1
-	add hl, bc
-mul.even:
-	or a
-	ret z
-	; Double bc
-	sla b										; Shift b left
-	rl c										; Shift c left using carry
+	ld h, b
+	ld l, a
+	call _HtimesL
+
+	ld (Data), hl
+	ld ix, Data
+	
+	; de <<= 8
+	sla (ix)
+	rl (ix+1)
+	rl (ix+2)
+
+	sla (ix)
+	rl (ix+1)
+	rl (ix+2)
+	
+	sla (ix)
+	rl (ix+1)
+	rl (ix+2)
+	
+	sla (ix)
+	rl (ix+1)
+	rl (ix+2)
+	
+	sla (ix)
+	rl (ix+1)
+	rl (ix+2)
+	
+	sla (ix)
+	rl (ix+1)
+	rl (ix+2)
+	
+	sla (ix)
+	rl (ix+1)
+	rl (ix+2)
+	
+	sla (ix)
+	rl (ix+1)
+	rl (ix+2)
+	ld de, (ix)
+	push de
+
+	ld h, c
+	ld l, a
+	call _HtimesL
+
+	pop de
+	add hl, de
+	ret
 
 
 
+
+
+
+
+
+ExitPrgm:
+	.db 0
+ErrorAppVarArchivedStr:
+	.db "ERROR, AppVar is archived, please move it into RAM", 0
 ErrorAppVarNotFoundStr:
-	.db "ERROR, AppVar not found", 0h
+	.db "ERROR, AppVar not found", 0
 AppVarName:
 	; "VARNAME", 0 (0-padded to 8 bytes), 15h
-	.db 15h, "SNKSKN", 0, 0
+	.db AppVarObj, "SNKSKN", 0, 0, 0, 0
 AppVarPointer:
 	.fill 3, 0
 Data:
 	.fill 64, 0
 SnakeLength:
 	; Little Endian
-	.db 09h, 00h
+	.db 20, 0, 0
 Snake:
+	; db - 1 byte, dw - 2 bytes, dl - 3 bytes
+	.dl Segments+(0*SnakeSegment_Size)
+	.dl Segments+(1*SnakeSegment_Size)
+	.dl Segments+(2*SnakeSegment_Size)
+	.dl Segments+(3*SnakeSegment_Size)
+	.dl Segments+(4*SnakeSegment_Size)
+	.dl Segments+(5*SnakeSegment_Size)
+	.dl Segments+(6*SnakeSegment_Size)
+	.dl Segments+(7*SnakeSegment_Size)
+	.dl Segments+(8*SnakeSegment_Size)
+	
+	.dl Segments+(9*SnakeSegment_Size)
+	.dl Segments+(10*SnakeSegment_Size)
+	.dl Segments+(11*SnakeSegment_Size)
+	.dl Segments+(12*SnakeSegment_Size)
+	.dl Segments+(13*SnakeSegment_Size)
+	.dl Segments+(14*SnakeSegment_Size)
+	.dl Segments+(15*SnakeSegment_Size)
+	.dl Segments+(16*SnakeSegment_Size)
+	.dl Segments+(17*SnakeSegment_Size)
+	.dl Segments+(18*SnakeSegment_Size)
+	.dl Segments+(19*SnakeSegment_Size)
+	.dl Segments+(20*SnakeSegment_Size)
 
-	.db (Segments+0)
-	.db (Segments+1)
-	.db (Segments+2)
-	.db (Segments+3)
-	.db (Segments+4)
-	.db (Segments+5)
-	.db (Segments+6)
-	.db (Segments+7)
-	.db (Segments+8)
 	.fill 3*(TILEMAP_AREA - 9), 0							; *SnakeSegment[LCD_AREA]
 Segments:
 	; Facing, Pos.X, Pos.Y, Type
@@ -358,6 +636,24 @@ Segments:
 	.db Facing.Right, 5, TILEMAP_HEIGHT-1, Type.Body
 	.db Facing.Right, 6, TILEMAP_HEIGHT-1, Type.Body
 	.db Facing.Right, 7, TILEMAP_HEIGHT-1, Type.Body
-	.db Facing.Right, 8, TILEMAP_HEIGHT-1, Type.Head
-	.fill SnakeSegment_Size*(TILEMAP_AREA - 9), 0			; SnakeSegment[LCD_AREA]
+
+	.db Facing.Up, 8, TILEMAP_HEIGHT-1, Type.Body
+	.db Facing.Up, 8, TILEMAP_HEIGHT-2, Type.Body
+	.db Facing.Up, 8, TILEMAP_HEIGHT-3, Type.Body
+	.db Facing.Left, 8, TILEMAP_HEIGHT-4, Type.Body
+	
+	.db Facing.Left, 7, TILEMAP_HEIGHT-4, Type.Body
+	.db Facing.Left, 6, TILEMAP_HEIGHT-4, Type.Body
+	.db Facing.Down, 5, TILEMAP_HEIGHT-4, Type.Body
+
+	.db Facing.Down, 5, TILEMAP_HEIGHT-3, Type.Body
+	.db Facing.Right, 5, TILEMAP_HEIGHT-2, Type.Body
+
+	.db Facing.Up, 6, TILEMAP_HEIGHT-2, Type.Body
+	.db Facing.Right, 6, TILEMAP_HEIGHT-3, Type.Body
+	.db Facing.Down, 7, TILEMAP_HEIGHT-3, Type.Body
+
+
+	.db Facing.Down, 7, TILEMAP_HEIGHT-2, Type.Head
+	.fill SnakeSegment_Size*(TILEMAP_AREA - 12), 0			; SnakeSegment[LCD_AREA]
 

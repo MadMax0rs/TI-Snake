@@ -42,7 +42,7 @@ if len(OnCalcName) > 8:
 
 
 
-OutputFilePath: str = f"./src/img/{OnCalcName}.8xv"
+OutputFilePath: str = f"./bin/{OnCalcName}.8xv"
 
 with open(OutputFilePath, "wb") as file:
 	# DISCLAIMER: Some bytes are duplicated throughout the the file,
