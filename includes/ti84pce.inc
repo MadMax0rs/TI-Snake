@@ -4011,43 +4011,43 @@ pTmrRange		equ 7000h
 mpTmrRange		equ 0F20000h
 
 tmr1Counter		equ 00h
-pTmr1Counter		equ 7000h
-mpTmr1Counter		equ 0F20000h
+pTmr1Counter	equ 7000h
+mpTmr1Counter	equ 0F20000h
 tmr1Load		equ 04h
 pTmr1Load		equ 7004h
 mpTmr1Load		equ 0F20004h
 tmr1Match1		equ 08h
 pTmr1Match1		equ 7008h
-mpTmr1Match1		equ 0F20008h
+mpTmr1Match1	equ 0F20008h
 tmr1Match2		equ 0Ch
 pTmr1Match2		equ 700Ch
-mpTmr1Match2		equ 0F2000Ch
+mpTmr1Match2	equ 0F2000Ch
 
 tmr2Counter		equ 10h
-pTmr2Counter		equ 7010h
-mpTmr2Counter		equ 0F20010h
+pTmr2Counter	equ 7010h
+mpTmr2Counter	equ 0F20010h
 tmr2Load		equ 14h
 pTmr2Load		equ 7014h
 mpTmr2Load		equ 0F20014h
 tmr2Match1		equ 18h
 pTmr2Match1		equ 7018h
-mpTmr2Match1		equ 0F20018h
+mpTmr2Match1	equ 0F20018h
 tmr2Match2		equ 1Ch
 pTmr2Match2		equ 701Ch
-mpTmr2Match2		equ 0F2001Ch
+mpTmr2Match2	equ 0F2001Ch
 
 tmr3Counter		equ 20h
-pTmr3Counter		equ 7020h
-mpTmr3Counter		equ 0F20020h
+pTmr3Counter	equ 7020h
+mpTmr3Counter	equ 0F20020h
 tmr3Load		equ 24h
 pTmr3Load		equ 7024h
 mpTmr3Load		equ 0F20024h
 tmr3Match1		equ 28h
 pTmr3Match1		equ 7028h
-mpTmr3Match1		equ 0F20028h
+mpTmr3Match1	equ 0F20028h
 tmr3Match2		equ 2Ch
 pTmr3Match2		equ 702Ch
-mpTmr3Match2		equ 0F2002Ch
+mpTmr3Match2	equ 0F2002Ch
 
 tmrCtrl			equ 30h
 pTmrCtrl		equ 7030h
@@ -4055,27 +4055,27 @@ mpTmrCtrl		equ 0F20030h
 
 bTmr1Enable		equ 0
 tmr1Enable		equ 1<<bTmr1Enable
-bTmr1Crystal		equ 1
+bTmr1Crystal	equ 1
 tmr1Crystal		equ 1<<bTmr1Crystal
-bTmr1Overflow		equ 2
-tmr1Overflow		equ 1<<bTmr1Overflow
+bTmr1Overflow	equ 2
+tmr1Overflow	equ 1<<bTmr1Overflow
 bTmr2Enable		equ 3
 tmr2Enable		equ 1<<bTmr2Enable
-bTmr2Crystal		equ 4
+bTmr2Crystal	equ 4
 tmr2Crystal		equ 1<<bTmr2Crystal
-bTmr2Overflow		equ 5
-tmr2Overflow		equ 1<<bTmr2Overflow
+bTmr2Overflow	equ 5
+tmr2Overflow	equ 1<<bTmr2Overflow
 bTmr3Enable		equ 6
 tmr3Enable		equ 1<<bTmr3Enable
-bTmr3Crystal		equ 7
+bTmr3Crystal	equ 7
 tmr3Crystal		equ 1<<bTmr3Crystal
-bTmr3Overflow		equ 8
-tmr3Overflow		equ 1<<bTmr3Overflow
-bTmr1CountUp		equ 9
+bTmr3Overflow	equ 8
+tmr3Overflow	equ 1<<bTmr3Overflow
+bTmr1CountUp	equ 9
 tmr1CountUp		equ 1<<bTmr1CountUp
-bTmr2CountUp		equ 10
+bTmr2CountUp	equ 10
 tmr2CountUp		equ 1<<bTmr2CountUp
-bTmr3CountUp		equ 11
+bTmr3CountUp	equ 11
 tmr3CountUp		equ 1<<bTmr3CountUp
 
 tmrIntStatus		equ 34h
@@ -4108,6 +4108,69 @@ mpTmrIntMask		equ 0F20038h
 tmrRevision		equ 3Ch
 pTmrRevision		equ 703Ch
 mpTmrRevision		equ 0F2003Ch
+
+; My Timer settings - Added by MadMax0rs
+; Source: https://wikiti.brandonw.net/index.php?title=84PCE:Ports:7000
+;-----------------------------------
+
+; Timer Register Addresses
+TIMER_CTRL_REG						equ 0F20030h		; 12-bits - Timer control register
+TIMER_INTERRUPT_STATUS				equ 0F20034h		; 12-bits - Reads the cause of the interrupt, write 1 bit to reset
+
+TIMER1_COUNTER						equ 0F20000h		; 32-bits - Can be written directly, but it should be disabled first since the entire value cannot be written atomically
+TIMER1_RESET_VAL					equ 0F20004h		; 32-bits - The counter is reloaded with this value once it reaches 0
+TIMER1_MATCH_VAL1					equ 0F20008h		; 32-bits - An interrupt will be generated when the counter matches this value
+TIMER1_MATCH_VAL2					equ 0F2000Ch		; 32-bits - An interrupt will be generated when the counter matches this value
+
+TIMER2_COUNTER						equ 0F20010h		; 32-bits - Can be written directly, but it should be disabled first since the entire value cannot be written atomically
+TIMER2_RESET_VAL					equ 0F20014h		; 32-bits - The counter is reloaded with this value once it reaches 0
+TIMER2_MATCH_VAL1					equ 0F20018h		; 32-bits - An interrupt will be generated when the counter matches this value
+TIMER2_MATCH_VAL2					equ 0F2001Ch		; 32-bits - An interrupt will be generated when the counter matches this value
+
+TIMER3_COUNTER						equ 0F20020h		; 32-bits - Can be written directly, but it should be disabled first since the entire value cannot be written atomically
+TIMER3_RESET_VAL					equ 0F20024h		; 32-bits - The counter is reloaded with this value once it reaches 0
+TIMER3_MATCH_VAL1					equ 0F20028h		; 32-bits - An interrupt will be generated when the counter matches this value
+TIMER3_MATCH_VAL2					equ 0F2002Ch		; 32-bits - An interrupt will be generated when the counter matches this value
+
+; Timer Control Register Settings
+
+TIMER1_OFF							equ %000000000000	; Disable Timer 1
+TIMER1_ON							equ %000000000001	; Enable Timer 1
+TIMER1_CPU_CLK						equ %000000000010	; Sets timer 1 to use the CPU clock - 20Hz
+TIMER1_CYSTAL_CLK					equ %000000000000	; Sets timer 1 to use the Crystal clock - 48Mhz
+TIMER1_INT_AT_ZERO					equ %000000000100	; Generate an interrupt when timer 1 reaches 0
+TIMER1_COUNT_DOWN					equ %000000000000	; Sets timer 1 to count down
+TIMER1_COUNT_UP						equ %001000000000	; Sets timer 1 to count up
+
+
+TIMER2_OFF							equ %000000000000	; Disable Timer 2
+TIMER2_ON							equ %000000001000	; Enable Timer 2
+TIMER2_CPU_CLK						equ %000000000000	; Sets timer 2 to use the CPU clock
+TIMER2_CYSTAL_CLK					equ %000000010000	; Sets timer 2 to use the Crystal clock
+TIMER2_INT_AT_ZERO					equ %000000100000	; Generate an interrupt when timer 2 reaches 0
+TIMER2_COUNT_DOWN					equ %000000000000	; Sets timer 2 to count down
+TIMER2_COUNT_UP						equ %010000000000	; Sets timer 2 to count up
+
+TIMER3_OFF							equ %000000000000	; Disable Timer 3
+TIMER3_ON							equ %000001000000	; Enable Timer 3
+TIMER3_CPU_CLK						equ %000000000000	; Sets timer 3 to use the CPU clock
+TIMER3_CYSTAL_CLK					equ %000010000000	; Sets timer 3 to use the Crystal clock
+TIMER3_INT_AT_ZERO					equ %000100000000	; Generate an interrupt when timer 3 reaches 0
+TIMER3_COUNT_DOWN					equ %000000000000	; Sets timer 3 to count down
+TIMER3_COUNT_UP						equ %100000000000	; Sets timer 3 to count up
+
+; Timer Interrupt Status Register Settings
+TIMER1_MATCH1						equ %000000000001	; Set if timer 1 reaches match register 1
+TIMER1_MATCH2						equ %000000000010	; Set if timer 1 reaches match register 2
+TIMER1_OVERFLOW						equ %000000000100	; Set if timer 1 reaches 0 and gets reloaded, but only if enabled by the control register
+
+TIMER2_MATCH1						equ %000000001000	; Set if timer 2 reaches match register 1
+TIMER2_MATCH2						equ %000000010000	; Set if timer 2 reaches match register 2
+TIMER2_OVERFLOW						equ %000000100000	; Set if timer 2 reaches 0 and gets reloaded, but only if enabled by the control register
+
+TIMER3_MATCH1						equ %000001000000	; Set if timer 3 reaches match register 1
+TIMER3_MATCH2						equ %000010000000	; Set if timer 3 reaches match register 2
+TIMER3_OVERFLOW						equ %000100000000	; Set if timer 3 reaches 0 and gets reloaded, but only if enabled by the control register
 
 ;RTC Ports
 ;-----------------------------------

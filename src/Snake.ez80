@@ -1,5 +1,5 @@
 ; Made with the help of https://ez80.readthedocs.io/en/latest/tutorial/intro.html
-#include "D:\TI-84PlusCE\Games\MyGames\ASM\Snake\includes\ti84pce.inc"
+#include "D:/TI-84PlusCE/Games/MyGames/ASM/includes/ti84pce.inc"
 
 ; Have to be in order where something is defined BEFORE it is used
 TILE_WIDTH						equ 16
@@ -13,6 +13,8 @@ LCD_AREA						equ LCD_WIDTH*LCD_HEIGHT			; 76800
 TILEMAP_WIDTH					equ LCD_WIDTH/TILE_WIDTH			; 20
 TILEMAP_HEIGHT					equ LCD_HEIGHT/TILE_HEIGHT			; 15
 TILEMAP_AREA					equ TILEMAP_WIDTH*TILEMAP_HEIGHT	; 300
+
+TICKS_ADDR   equ $F30024   ; 3-byte OS tick counter (increments at 60 Hz)
 
 
 
@@ -30,6 +32,7 @@ Type.Tail						equ $2
 ;
 
 ; Snake Segment
+
 SnakeSegment_Size				equ 4		; 1+1+1+1=4
 ; Attributes
 SnakeSegment.Facing				equ 0		; 1 byte
@@ -62,7 +65,7 @@ TailRight						equ $001E00
 ; Tells the assembler this program will be located at userMem-2, so any memory addresses should be relative to that
 ; -2 because the program is placed at userMem, but there are 2 bytes that get removed at runtime (or smth like that, idk look at the tutorial)
 .org userMem-2
-	; EQUivalent to Asm84CEPrgm in TI-BASIC
+	; Equivalent to Asm84CEPrgm in TI-BASIC
 	.db tExtTok,tAsm84CeCmp
 Start:
 	;
@@ -73,23 +76,36 @@ Start:
 	call _homeup
 	call _ClrScrnFull
 	
-	call ResetScreen
+	call StartTimer
 
 	call GetAppVar
-
+	call ResetScreen
+	call DrawSnake
+	
+	
+;--------------------
+; **Main Game Loop**
+;--------------------
 Main:
+	; Get key press
+	call _GetCSC
+	or a							; Check if a key was actually pressed
+	call nz, HandleKeyPress
+
+
 	ld a, (ExitPrgm)
 	or a
 	jr nz, Exit
 
-	call DrawSnake
-	
-	;call Test1	; Passed
 
-	; Get key press
-	call _GetCSC
-	or a
-	call nz, HandleKeyPress
+	; Timer Stuff
+	call CheckTimer
+	jr nc, Main						; If less than 0.5 seconds elapsed, don't do main loop
+
+	; Snake Stuff
+	call MoveSnake
+	call DrawSnake
+
 
 	jr Main
 
@@ -97,153 +113,75 @@ ErrorAppVarNotFound:
 	ld hl, ErrorAppVarNotFoundStr
 	jr Error
 ErrorAppVarArchived:
-	ld hl, ErrorAppVarArchived
+	ld hl, ErrorAppVarArchivedStr
 	jr Error
-
+ErrorInvalidDirection:
+	ld hl, ErrorInvalidDirectionStr
+	jr Error
+YouDied:
+	ld hl, YouDiedStr
+	jr Error
 Error:
 	call _PutS
 	call _GetKey
 	ld a, 1
 	ld (ExitPrgm), a
+	call DrawSnake					; Render the last frame
 	ret
 
+;----------------------
+; **Exit the program**
+;----------------------
 Exit:
+	; Disable the timer
+	ld hl, 0								; Disable all timers (because its easier than disabling just timer 1)
+	ld (TIMER_CTRL_REG), hl	
+
 	; Hand control back over to the OS
 	call _JForceCmdNoChar
 
 	; Exits the program (Usually? idk)
 	ret
 
+;---------------------------------------------
+; **Setup up a timer that waits 0.5 seconds**
+;---------------------------------------------
+StartTimer:
+	ld hl, 0								; Disable all timers (because its easier than disabling just timer 1)
+	ld (TIMER_CTRL_REG), hl		
 
-Test1:
-	ld de, (AppVarPointer)
-	ld hl, Apple
-	add hl, de
-	ld a, 0
-	ld ixl, 1
-	call SetTile
+	ld hl, 00471Ch							; 18204(0000471Ch) ticks / 36.4 KHz(I have no idea where this number comes from, it just works, ok?) equals 0.5 seconds (little-endian)
+	ld (TIMER1_COUNTER), hl
+	ld (TIMER1_RESET_VAL), hl
+	ld a, 00h
+	ld (TIMER1_COUNTER+3), a
+	ld (TIMER1_RESET_VAL+3), a
 
-	ld de, (AppVarPointer)
-	ld hl, BlackTile
-	add hl, de
-	ld a, 0
-	ld ixl, 2
-	call SetTile
+	ld hl, TIMER1_ON|TIMER1_CPU_CLK|TIMER1_COUNT_DOWN	; Settings for timer
+	ld (TIMER_CTRL_REG), hl
+	ret
 
-	ld de, (AppVarPointer)
-	ld hl, Apple
-	add hl, de
-	ld a, 0
-	ld ixl, 3
-	call SetTile
+;--------------------------------------------------
+; **Checks if the timer has hit 0**
+; Inputs: None
+; Outputs:
+;	- CF - Set if timer has hit 0, Reset otherwise
+;--------------------------------------------------
+CheckTimer:
+	ld a, (TIMER1_COUNTER+1)
+	ld b, a
+	ld a, (PreviousTime)
+	cp b
 
-	ld de, (AppVarPointer)
-	ld hl, BodyVertical
-	add hl, de
-	ld a, 0
-	ld ixl, 4
-	call SetTile
-
-	ld de, (AppVarPointer)
-	ld hl, RightToTop
-	add hl, de
-	ld a, 0
-	ld ixl, 5
-	call SetTile
-
-	ld de, (AppVarPointer)
-	ld hl, LeftToTop
-	add hl, de
-	ld a, 0
-	ld ixl, 6
-	call SetTile
-
-	ld de, (AppVarPointer)
-	ld hl, BodyHorizontal
-	add hl, de
-	ld a, 0
-	ld ixl, 7
-	call SetTile
-
-	ld de, (AppVarPointer)
-	ld hl, BottomToRight
-	add hl, de
-	ld a, 0
-	ld ixl, 8
-	call SetTile
-
-	ld de, (AppVarPointer)
-	ld hl, BottomToLeft
-	add hl, de
-	ld a, 0
-	ld ixl, 9
-	call SetTile
-
-	ld de, (AppVarPointer)
-	ld hl, HeadUp
-	add hl, de
-	ld a, 0
-	ld ixl, $0A
-	call SetTile
-
-	ld de, (AppVarPointer)
-	ld hl, HeadDown
-	add hl, de
-	ld a, 0
-	ld ixl, $0B
-	call SetTile
-
-	ld de, (AppVarPointer)
-	ld hl, HeadLeft
-	add hl, de
-	ld a, 0
-	ld ixl, $0C
-	call SetTile
-
-	ld de, (AppVarPointer)
-	ld hl, HeadRight
-	add hl, de
-	ld a, 0
-	ld ixl, $0D
-	call SetTile
-
-	ld de, (AppVarPointer)
-	ld hl, TailUp
-	add hl, de
-	ld a, 0
-	ld ixl, $0E
-	call SetTile
-
-	ld de, (AppVarPointer)
-	ld hl, TailDown
-	add hl, de
-	ld a, 1
-	ld ixl, 0
-	call SetTile
-
-	ld de, (AppVarPointer)
-	ld hl, TailLeft
-	add hl, de
-	ld a, 1
-	ld ixl, 1
-	call SetTile
-
-	ld de, (AppVarPointer)
-	ld hl, TailRight
-	add hl, de
-	ld a, 1
-	ld ixl, 2
-	call SetTile
-
-	call BlitScreen
+	ld a, b									; Save current time
+	ld (PreviousTime), a
 
 	ret
 
 
-
-;
-; Gets AppVar stored in AppVarName
-;
+;--------------------------------------
+; **Gets AppVar stored in AppVarName**
+;--------------------------------------
 GetAppVar:
 	ld hl, AppVarName
 	call _Mov9ToOP1
@@ -255,22 +193,19 @@ GetAppVar:
 	call _ChkInRam
 
 	jp nz, ErrorAppVarArchived
-;	jr nz, GetAppVar.Unarchive
 
 	; Pointer to AppVar Data Section stored in de
 	ld (AppVarPointer), de
 	ret
 
-; GetAppVar.Unarchive:
-; 	call _Arc_Unarc
-; 	; Re-lookup pointers
-; 	jr GetAppVar
-
-;
+;----------------------------------------------------------------
+; **Gets the last keypress and does the corrisponding function**
 ; Params:
-; 	- a: keycode
-;
+;	- A: keycode
+;----------------------------------------------------------------
 HandleKeyPress:
+	ld b, 1
+	ld c, 1
 
 	cp a, skClear
 	jr z, HandleKeyPress.Clear
@@ -283,21 +218,44 @@ HandleKeyPress:
 	cp a, skRight
 	jr z, HandleKeyPress.Right
 	ret
+
 HandleKeyPress.Up:
+	ld c, Facing.Up
+	ld b, Facing.Down
+	jr HandleKeyPress.Direction.Next
 HandleKeyPress.Down:
+	ld c, Facing.Down
+	ld b, Facing.Up
+	jr HandleKeyPress.Direction.Next
 HandleKeyPress.Left:
+	ld c, Facing.Left
+	ld b, Facing.Right
+	jr HandleKeyPress.Direction.Next
 HandleKeyPress.Right:
+	ld c, Facing.Right
+	ld b, Facing.Left
+	jr HandleKeyPress.Direction.Next
+
+HandleKeyPress.Direction.Next:
+	ld a, (SnakeFacingPrevious)
+	cp b
+	jr z, HandleKeyPress.Direction.Done
+
+	ld a, c
+	ld (SnakeFacing), a
+HandleKeyPress.Direction.Done:
 	ret
+
 HandleKeyPress.Clear:
-	ld a, 1
+	ld a, b
 	ld (ExitPrgm), a
 	ret
 
 
 
-;
-; Draws the snake to the LCD_BUFFER
-;
+;---------------------------------------
+; **Draws the snake to the LCD_BUFFER**
+;---------------------------------------
 DrawSnake:
 	ld iy, 0
 	ld ix, Snake
@@ -354,14 +312,10 @@ DrawSegment.Head_Tail.Down:	; If down, it needs to add 1
 DrawSegment.Head_Tail.Up:	; If up, its already there
 	jr DrawSegment.Done
 
-	
-
-
-
-
 DrawSegment.Body:
 	pop ix
 	push ix											; Get ix and immediately save it again
+
 	; Get previous segment
 	push iy
 	ld iy, (ix-3)
@@ -433,22 +387,22 @@ DrawSegment.Done:
 
 
 
-;
-; Resets the screen to all black
-;
+;------------------------------------
+; **Resets the screen to all black**
+;------------------------------------
 ResetScreen:
 	ld hl, LCD_BUFFER
 	ld bc, LCD_AREA*BYTES_PER_PIXEL
 RestScreen.clearLoop:
-    ld (hl), 0
-    inc hl
-    dec bc
+	ld (hl), 0
+	inc hl
+	dec bc
 	; Check of bc is zero
 	ld (Data), bc										; bc is 24-bit so I have to load it into memory, then load each bit seperately and or them all together
 	ld a, (Data+2)
 	or b
 	or c
-    jr nz, RestScreen.clearLoop
+	jr nz, RestScreen.clearLoop
 	call BlitScreen
 	ret
 
@@ -459,14 +413,177 @@ BlitScreen:
 	call $4544    ; _BlitLCD BCALL address for OS 5.8.x
 	ret
 
-;
-; Moves a given tile into the given render buffer
+
+
+; TODO: Finish this function
+;----------------------------------
+;**Moves the snake 1 Tile forward**
+;----------------------------------
+MoveSnake:
+	; Move the current direction into the previous direction
+	ld a, (SnakeFacing)
+	ld (SnakeFacingPrevious), a
+
+	ld hl, (AppVarPointer)
+	ld bc, BlackTile
+	add hl, bc
+	ld iy, (Snake)								; typeof(iy) = SnakeSegment*
+	ld b, (iy+SnakeSegment.Pos.X)				; typeof(iy) = SnakeSegment.X
+	ld ixl, b
+	ld a, (iy+SnakeSegment.Pos.Y)				; typeof(iy) = SnakeSegment.Y
+	call SetTile
+
+	ld bc, (SnakeLength)
+	dec bc										; Otherwise off-by-one error, reads 3 bytes farther than its supposed to
+	ld a, 3
+	call mul
+	ld (Data), hl								; Save mul result
+	ld bc, Snake
+	add hl, bc									; hl = head SnakeSegment**
+	ld (Data+3), hl								; Save head SnakeSegment**
+
+	ld ix, (hl)									; ix = head SnakeSegment*
+	ld a, (SnakeFacing)
+	ld (ix+SnakeSegment.Facing), a				; Set the old head to be facing the right direction (do this before the copy)
+	
+	; Create new head
+	ld de, (hl)									; Copy head SnakeSegment** into de
+	ld hl, (hl)									; Copy head SnakeSegment** into hl
+
+	ld bc, SnakeSegment_Size
+	add hl, bc									; Add offset
+	ex de, hl									; Can't do "add de, bc"
+	ld (Data+6), de								; Save the new pointer
+	ldir										; Move current head to next segment
+
+	; Set old head to be a body tile
+	ld (ix+SnakeSegment.Type), Type.Body		; Set the old head to be a body
+
+	; Shift all of the pointers up by 1
+	ld hl, Snake
+	inc hl
+	inc hl
+	inc hl
+	ld de, Snake
+	ld bc, (Data)								; Get mul result
+	ldir
+
+	; Set new head pointer
+	ld hl, (Data+6)								; Load the new pointer
+	ld ix, (Data+3)								; Copy head SnakeSegment** into ix
+	ld (ix), hl									; Set the new pointer
+
+	; Move the new head in the correct direction
+	push hl										; ld ix, hl
+	pop ix
+	ld de, 0
+	ld a, (ix+SnakeSegment.Facing)
+	cp Facing.Up
+	jr z, MoveSnake.Up
+	cp Facing.Down
+	jr z, MoveSnake.Down
+	cp Facing.Left
+	jr z, MoveSnake.Left
+	cp Facing.Right
+	jr z, MoveSnake.Right
+	jp ErrorInvalidDirection
+MoveSnake.Up:
+	ld a, (ix+SnakeSegment.Pos.Y)
+	ld c, 00h
+	cp c
+	jp z, YouDied
+	ld b, 0FFh
+	jr MoveSnake.Vertical
+MoveSnake.Down:
+	ld a, (ix+SnakeSegment.Pos.Y)
+	ld c, TILEMAP_HEIGHT-1								; -1 because coords are 0-based
+	cp c
+	jp z, YouDied
+	ld b, 1h
+MoveSnake.Vertical:
+	add a, b
+	ld (ix+SnakeSegment.Pos.Y), a
+	jr MoveSnake.DoneMoveHead
+
+MoveSnake.Left:
+	ld a, (ix+SnakeSegment.Pos.X)
+	ld c, 00h
+	cp c
+	jp z, YouDied
+	ld b, 0FFh
+	jr MoveSnake.Horizontal
+MoveSnake.Right:
+	ld a, (ix+SnakeSegment.Pos.X)
+	ld c, TILEMAP_WIDTH-1								; -1 because coords are 0-based
+	cp c
+	jp z, YouDied
+	ld b, 1h
+MoveSnake.Horizontal:
+	add a, b
+	ld (ix+SnakeSegment.Pos.X), a
+
+MoveSnake.DoneMoveHead:
+
+	ld iy, (Data+6)									; typeof(iy) = SnakeSegment*
+	ld d, (iy+SnakeSegment.Pos.X)
+	ld e, (iy+SnakeSegment.Pos.Y)
+	ld ix, (Snake)
+
+	; Don't count the head
+	dec iy
+	dec iy
+	dec iy
+	dec iy
+	ld (Data+6), iy
+MoveSnake.CheckOverlapping:
+	ld hl, 0
+
+	ld h, (ix+SnakeSegment.Pos.X)
+	ld l, (ix+SnakeSegment.Pos.Y)
+ 
+
+	scf												; Reset carry
+	ccf
+	sbc hl, de
+	jp z, YouDied
+	inc ix											; Move to next segment pointer
+	inc ix
+	inc ix
+	inc ix
+
+	push ix											; ld bc, ix
+	pop bc
+	ld hl, (Data+6)									; Load the pointer to the segment before the head
+	scf												; Reset carry
+	ccf
+	sbc hl, bc										; cp hl, bc
+	jr nz, MoveSnake.CheckOverlapping
+
+
+	; Set the new tail to be a tail
+	ld ix, (Snake)
+	ld (ix+SnakeSegment.Type), Type.Tail
+
+
+	ret
+
+
+
+; TODO: Implement this function
+;---------------------------------------------------------------------------------------
+; **Resets the Snake Segments so that they are a the beginning of the reserved memory**
+;---------------------------------------------------------------------------------------
+ResetSegments:
+ret
+
+;---------------------------------------------------
+; **Moves a given tile into the given render buffer**
 ; Destroys: de, bc
 ; Params:
-; - hl: Pointer to Tile
-; - ixl: x pos to place the top left of the tile at
-; - a: y pos to place the top left of the tile at
-;
+; - HL: Pointer to Tile
+; - IXL: x pos to place the top left of the tile at
+; - A: y pos to place the top left of the tile at
+;---------------------------------------------------
 SetTile:
 	ld de, LCD_BUFFER
 
@@ -517,15 +634,15 @@ SetTile.loop:
 	ret
 
 
-;
-; Multiplies usinga variation of the double and half strategy
+;--------------------------------------------------------------
+; **HL = A * BC**
 ; Destroys: de, ix
 ; Params:
-;   A = first number
-;   BC = second number
+;	- A: first number - 8-bit
+;	- BC: second number - 16-bit
 ; Output:
-;   HL = 24-bit result
-;
+;	- HL: result - 24-bit
+;--------------------------------------------------------------
 mul:
 	ld h, b
 	ld l, a
@@ -584,22 +701,54 @@ mul:
 
 
 
+;--------------
+; Vars
+;--------------
+
 ExitPrgm:
 	.db 0
+
+
+
+; Error Messages
 ErrorAppVarArchivedStr:
 	.db "ERROR, AppVar is archived, please move it into RAM", 0
 ErrorAppVarNotFoundStr:
 	.db "ERROR, AppVar not found", 0
+ErrorInvalidDirectionStr:
+	.db "ERROR, The current movement direction has been set to an invalid value", 0
+YouDiedStr:
+	.db "You Died", 0
+
+
+
+; AppVar
+
 AppVarName:
 	; "VARNAME", 0 (0-padded to 8 bytes), 15h
 	.db AppVarObj, "SNKSKN", 0, 0, 0, 0
 AppVarPointer:
 	.fill 3, 0
-Data:
-	.fill 64, 0
+
+
+
+; Timer
+
+PreviousTime:
+	.db 0FFh
+
+
+ApplePos:
+	.db 0	; X
+	.db 0	; Y
+; Snake
+SnakeFacing:
+	.dl Facing.Right
+SnakeFacingPrevious:
+	.dl Facing.Right
 SnakeLength:
 	; Little Endian
-	.db 20, 0, 0
+	.db 9, 0, 0
 Snake:
 	; db - 1 byte, dw - 2 bytes, dl - 3 bytes
 	.dl Segments+(0*SnakeSegment_Size)
@@ -611,19 +760,6 @@ Snake:
 	.dl Segments+(6*SnakeSegment_Size)
 	.dl Segments+(7*SnakeSegment_Size)
 	.dl Segments+(8*SnakeSegment_Size)
-	
-	.dl Segments+(9*SnakeSegment_Size)
-	.dl Segments+(10*SnakeSegment_Size)
-	.dl Segments+(11*SnakeSegment_Size)
-	.dl Segments+(12*SnakeSegment_Size)
-	.dl Segments+(13*SnakeSegment_Size)
-	.dl Segments+(14*SnakeSegment_Size)
-	.dl Segments+(15*SnakeSegment_Size)
-	.dl Segments+(16*SnakeSegment_Size)
-	.dl Segments+(17*SnakeSegment_Size)
-	.dl Segments+(18*SnakeSegment_Size)
-	.dl Segments+(19*SnakeSegment_Size)
-	.dl Segments+(20*SnakeSegment_Size)
 
 	.fill 3*(TILEMAP_AREA - 9), 0							; *SnakeSegment[LCD_AREA]
 Segments:
@@ -637,23 +773,28 @@ Segments:
 	.db Facing.Right, 6, TILEMAP_HEIGHT-1, Type.Body
 	.db Facing.Right, 7, TILEMAP_HEIGHT-1, Type.Body
 
-	.db Facing.Up, 8, TILEMAP_HEIGHT-1, Type.Body
-	.db Facing.Up, 8, TILEMAP_HEIGHT-2, Type.Body
-	.db Facing.Up, 8, TILEMAP_HEIGHT-3, Type.Body
-	.db Facing.Left, 8, TILEMAP_HEIGHT-4, Type.Body
+	; Snake Render Check
+	; .db Facing.Up, 8, TILEMAP_HEIGHT-1, Type.Body
+	; .db Facing.Up, 8, TILEMAP_HEIGHT-2, Type.Body
+	; .db Facing.Up, 8, TILEMAP_HEIGHT-3, Type.Body
+	; .db Facing.Left, 8, TILEMAP_HEIGHT-4, Type.Body
 	
-	.db Facing.Left, 7, TILEMAP_HEIGHT-4, Type.Body
-	.db Facing.Left, 6, TILEMAP_HEIGHT-4, Type.Body
-	.db Facing.Down, 5, TILEMAP_HEIGHT-4, Type.Body
+	; .db Facing.Left, 7, TILEMAP_HEIGHT-4, Type.Body
+	; .db Facing.Left, 6, TILEMAP_HEIGHT-4, Type.Body
+	; .db Facing.Down, 5, TILEMAP_HEIGHT-4, Type.Body
 
-	.db Facing.Down, 5, TILEMAP_HEIGHT-3, Type.Body
-	.db Facing.Right, 5, TILEMAP_HEIGHT-2, Type.Body
+	; .db Facing.Down, 5, TILEMAP_HEIGHT-3, Type.Body
+	; .db Facing.Right, 5, TILEMAP_HEIGHT-2, Type.Body
 
-	.db Facing.Up, 6, TILEMAP_HEIGHT-2, Type.Body
-	.db Facing.Right, 6, TILEMAP_HEIGHT-3, Type.Body
-	.db Facing.Down, 7, TILEMAP_HEIGHT-3, Type.Body
+	; .db Facing.Up, 6, TILEMAP_HEIGHT-2, Type.Body
+	; .db Facing.Right, 6, TILEMAP_HEIGHT-3, Type.Body
+	; .db Facing.Down, 7, TILEMAP_HEIGHT-3, Type.Body
 
 
-	.db Facing.Down, 7, TILEMAP_HEIGHT-2, Type.Head
-	.fill SnakeSegment_Size*(TILEMAP_AREA - 12), 0			; SnakeSegment[LCD_AREA]
+	.db Facing.Right, 8, TILEMAP_HEIGHT-1, Type.Head
+	.fill SnakeSegment_Size*(TILEMAP_AREA - 9), 0			; SnakeSegment[LCD_AREA]
 
+
+; Extra memory for short-term storage
+Data:
+	.fill 64, 0
