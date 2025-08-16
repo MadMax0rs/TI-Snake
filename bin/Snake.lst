@@ -88,11 +88,11 @@ Listing for file "src\Snake.ez80"
    76 D1:A881 CD 28 08 02 	call _homeup
    77 D1:A885 CD 10 08 02 	call _ClrScrnFull
    78 D1:A889 -  -  -  -  	
-   79 D1:A889 CD F1 A8 D1 	call StartTimer
+   79 D1:A889 CD F5 A8 D1 	call StartTimer
    80 D1:A88D -  -  -  -  
-   81 D1:A88D CD 28 A9 D1 	call GetAppVar
-   82 D1:A891 CD 3C AA D1 	call ResetScreen
-   83 D1:A895 CD 8A A9 D1 	call DrawSnake
+   81 D1:A88D CD 2C A9 D1 	call GetAppVar
+   82 D1:A891 CD 58 AA D1 	call ResetScreen
+   83 D1:A895 CD A6 A9 D1 	call DrawSnake
    84 D1:A899 -  -  -  -  	
    85 D1:A899 -  -  -  -  	
    86 D1:A899 -  -  -  -  ;--------------------
@@ -102,644 +102,690 @@ Listing for file "src\Snake.ez80"
    90 D1:A899 -  -  -  -  	; Get key press
    91 D1:A899 CD 4C 01 02 	call _GetCSC
    92 D1:A89D B7 -  -  -  	or a							; Check if a key was actually pressed
-   93 D1:A89E C4 46 A9 D1 	call nz, HandleKeyPress
+   93 D1:A89E C4 4A A9 D1 	call nz, HandleKeyPress
    94 D1:A8A2 -  -  -  -  
    95 D1:A8A2 -  -  -  -  
-   96 D1:A8A2 3A 39 AC D1 	ld a, (ExitPrgm)
+   96 D1:A8A2 3A 87 AC D1 	ld a, (ExitPrgm)
    97 D1:A8A6 B7 -  -  -  	or a
-   98 D1:A8A7 20 3B -  -  	jr nz, Exit
+   98 D1:A8A7 20 3F -  -  	jr nz, Exit
    99 D1:A8A9 -  -  -  -  
   100 D1:A8A9 -  -  -  -  
   101 D1:A8A9 -  -  -  -  	; Timer Stuff
-  102 D1:A8A9 CD 18 A9 D1 	call CheckTimer
+  102 D1:A8A9 CD 1C A9 D1 	call CheckTimer
   103 D1:A8AD 30 EA -  -  	jr nc, Main						; If less than 0.5 seconds elapsed, don't do main loop
   104 D1:A8AF -  -  -  -  
   105 D1:A8AF -  -  -  -  	; Snake Stuff
-  106 D1:A8AF CD 5F AA D1 	call MoveSnake
-  107 D1:A8B3 CD 8A A9 D1 	call DrawSnake
-  108 D1:A8B7 -  -  -  -  
-  109 D1:A8B7 -  -  -  -  
-  110 D1:A8B7 18 E0 -  -  	jr Main
-  111 D1:A8B9 -  -  -  -  
-  112 D1:A8B9 -  -  -  -  ErrorAppVarNotFound:
-  113 D1:A8B9 21 6D AC D1 	ld hl, ErrorAppVarNotFoundStr
-  114 D1:A8BD 18 12 -  -  	jr Error
-  115 D1:A8BF -  -  -  -  ErrorAppVarArchived:
-  116 D1:A8BF 21 3A AC D1 	ld hl, ErrorAppVarArchivedStr
-  117 D1:A8C3 18 0C -  -  	jr Error
-  118 D1:A8C5 -  -  -  -  ErrorInvalidDirection:
-  119 D1:A8C5 21 85 AC D1 	ld hl, ErrorInvalidDirectionStr
-  120 D1:A8C9 18 06 -  -  	jr Error
-  121 D1:A8CB -  -  -  -  YouDied:
-  122 D1:A8CB 21 CC AC D1 	ld hl, YouDiedStr
-  123 D1:A8CF 18 00 -  -  	jr Error
-  124 D1:A8D1 -  -  -  -  Error:
-  125 D1:A8D1 CD C0 07 02 	call _PutS
-  126 D1:A8D5 CD 8C 0D 02 	call _GetKey
-  127 D1:A8D9 3E 01 -  -  	ld a, 1
-  128 D1:A8DB 32 39 AC D1 	ld (ExitPrgm), a
-  129 D1:A8DF CD 8A A9 D1 	call DrawSnake					; Render the last frame
-  130 D1:A8E3 C9 -  -  -  	ret
-  131 D1:A8E4 -  -  -  -  
-  132 D1:A8E4 -  -  -  -  ;----------------------
-  133 D1:A8E4 -  -  -  -  ; **Exit the program**
-  134 D1:A8E4 -  -  -  -  ;----------------------
-  135 D1:A8E4 -  -  -  -  Exit:
-  136 D1:A8E4 -  -  -  -  	; Disable the timer
-  137 D1:A8E4 21 00 00 00 	ld hl, 0								; Disable all timers (because its easier than disabling just timer 1)
-  138 D1:A8E8 22 30 00 F2 	ld (TIMER_CTRL_REG), hl	
-  139 D1:A8EC -  -  -  -  
-  140 D1:A8EC -  -  -  -  	; Hand control back over to the OS
-  141 D1:A8EC CD 60 01 02 	call _JForceCmdNoChar
-  142 D1:A8F0 -  -  -  -  
-  143 D1:A8F0 -  -  -  -  	; Exits the program (Usually? idk)
-  144 D1:A8F0 C9 -  -  -  	ret
-  145 D1:A8F1 -  -  -  -  
-  146 D1:A8F1 -  -  -  -  ;---------------------------------------------
-  147 D1:A8F1 -  -  -  -  ; **Setup up a timer that waits 0.5 seconds**
-  148 D1:A8F1 -  -  -  -  ;---------------------------------------------
-  149 D1:A8F1 -  -  -  -  StartTimer:
-  150 D1:A8F1 21 00 00 00 	ld hl, 0								; Disable all timers (because its easier than disabling just timer 1)
-  151 D1:A8F5 22 30 00 F2 	ld (TIMER_CTRL_REG), hl		
-  152 D1:A8F9 -  -  -  -  
-  153 D1:A8F9 21 1C 47 00 	ld hl, 00471Ch							; 18204(0000471Ch) ticks / 36.4 KHz(I have no idea where this number comes from, it just works, ok?) equals 0.5 seconds (little-endian)
-  154 D1:A8FD 22 00 00 F2 	ld (TIMER1_COUNTER), hl
-  155 D1:A901 22 04 00 F2 	ld (TIMER1_RESET_VAL), hl
-  156 D1:A905 3E 00 -  -  	ld a, 00h
-  157 D1:A907 32 03 00 F2 	ld (TIMER1_COUNTER+3), a
-  158 D1:A90B 32 07 00 F2 	ld (TIMER1_RESET_VAL+3), a
-  159 D1:A90F -  -  -  -  
-  160 D1:A90F 21 03 00 00 	ld hl, TIMER1_ON|TIMER1_CPU_CLK|TIMER1_COUNT_DOWN	; Settings for timer
-  161 D1:A913 22 30 00 F2 	ld (TIMER_CTRL_REG), hl
-  162 D1:A917 C9 -  -  -  	ret
-  163 D1:A918 -  -  -  -  
-  164 D1:A918 -  -  -  -  ;--------------------------------------------------
-  165 D1:A918 -  -  -  -  ; **Checks if the timer has hit 0**
-  166 D1:A918 -  -  -  -  ; Inputs: None
-  167 D1:A918 -  -  -  -  ; Outputs:
-  168 D1:A918 -  -  -  -  ;	- CF - Set if timer has hit 0, Reset otherwise
-  169 D1:A918 -  -  -  -  ;--------------------------------------------------
-  170 D1:A918 -  -  -  -  CheckTimer:
-  171 D1:A918 3A 01 00 F2 	ld a, (TIMER1_COUNTER+1)
-  172 D1:A91C 47 -  -  -  	ld b, a
-  173 D1:A91D 3A E3 AC D1 	ld a, (PreviousTime)
-  174 D1:A921 B8 -  -  -  	cp b
-  175 D1:A922 -  -  -  -  
-  176 D1:A922 78 -  -  -  	ld a, b									; Save current time
-  177 D1:A923 32 E3 AC D1 	ld (PreviousTime), a
-  178 D1:A927 -  -  -  -  
-  179 D1:A927 C9 -  -  -  	ret
-  180 D1:A928 -  -  -  -  
-  181 D1:A928 -  -  -  -  
-  182 D1:A928 -  -  -  -  ;--------------------------------------
-  183 D1:A928 -  -  -  -  ; **Gets AppVar stored in AppVarName**
-  184 D1:A928 -  -  -  -  ;--------------------------------------
-  185 D1:A928 -  -  -  -  GetAppVar:
-  186 D1:A928 21 D5 AC D1 	ld hl, AppVarName
-  187 D1:A92C CD 20 03 02 	call _Mov9ToOP1
-  188 D1:A930 -  -  -  -  
-  189 D1:A930 CD 0C 05 02 	call _ChkFindSym
-  190 D1:A934 DA B9 A8 D1 	jp c, ErrorAppVarNotFound
-  191 D1:A938 -  -  -  -  
-  192 D1:A938 -  -  -  -  	; Check if AppVar is in RAM
-  193 D1:A938 CD 98 1F 02 	call _ChkInRam
-  194 D1:A93C -  -  -  -  
-  195 D1:A93C C2 BF A8 D1 	jp nz, ErrorAppVarArchived
-  196 D1:A940 -  -  -  -  
-  197 D1:A940 -  -  -  -  	; Pointer to AppVar Data Section stored in de
-  198 D1:A940 ED 53 E0 AC 
+  106 D1:A8AF CD 7B AA D1 	call MoveSnake
+  107 D1:A8B3 CD A6 A9 D1 	call DrawSnake
+  108 D1:A8B7 CD 8E A9 D1 	call DrawApple
+  109 D1:A8BB -  -  -  -  
+  110 D1:A8BB -  -  -  -  
+  111 D1:A8BB 18 DC -  -  	jr Main
+  112 D1:A8BD -  -  -  -  
+  113 D1:A8BD -  -  -  -  ErrorAppVarNotFound:
+  114 D1:A8BD 21 BB AC D1 	ld hl, ErrorAppVarNotFoundStr
+  115 D1:A8C1 18 12 -  -  	jr Error
+  116 D1:A8C3 -  -  -  -  ErrorAppVarArchived:
+  117 D1:A8C3 21 88 AC D1 	ld hl, ErrorAppVarArchivedStr
+  118 D1:A8C7 18 0C -  -  	jr Error
+  119 D1:A8C9 -  -  -  -  ErrorInvalidDirection:
+  120 D1:A8C9 21 D3 AC D1 	ld hl, ErrorInvalidDirectionStr
+  121 D1:A8CD 18 06 -  -  	jr Error
+  122 D1:A8CF -  -  -  -  YouDied:
+  123 D1:A8CF 21 1A AD D1 	ld hl, YouDiedStr
+  124 D1:A8D3 18 00 -  -  	jr Error
+  125 D1:A8D5 -  -  -  -  Error:
+  126 D1:A8D5 CD C0 07 02 	call _PutS
+  127 D1:A8D9 CD 8C 0D 02 	call _GetKey
+  128 D1:A8DD 3E 01 -  -  	ld a, 1
+  129 D1:A8DF 32 87 AC D1 	ld (ExitPrgm), a
+  130 D1:A8E3 CD A6 A9 D1 	call DrawSnake					; Render the last frame
+  131 D1:A8E7 C9 -  -  -  	ret
+  132 D1:A8E8 -  -  -  -  
+  133 D1:A8E8 -  -  -  -  ;----------------------
+  134 D1:A8E8 -  -  -  -  ; **Exit the program**
+  135 D1:A8E8 -  -  -  -  ;----------------------
+  136 D1:A8E8 -  -  -  -  Exit:
+  137 D1:A8E8 -  -  -  -  	; Disable the timer
+  138 D1:A8E8 21 00 00 00 	ld hl, 0								; Disable all timers (because its easier than disabling just timer 1)
+  139 D1:A8EC 22 30 00 F2 	ld (TIMER_CTRL_REG), hl	
+  140 D1:A8F0 -  -  -  -  
+  141 D1:A8F0 -  -  -  -  	; Hand control back over to the OS
+  142 D1:A8F0 CD 60 01 02 	call _JForceCmdNoChar
+  143 D1:A8F4 -  -  -  -  
+  144 D1:A8F4 -  -  -  -  	; Exits the program (Usually? idk)
+  145 D1:A8F4 C9 -  -  -  	ret
+  146 D1:A8F5 -  -  -  -  
+  147 D1:A8F5 -  -  -  -  ;---------------------------------------------
+  148 D1:A8F5 -  -  -  -  ; **Setup up a timer that waits 0.5 seconds**
+  149 D1:A8F5 -  -  -  -  ;---------------------------------------------
+  150 D1:A8F5 -  -  -  -  StartTimer:
+  151 D1:A8F5 21 00 00 00 	ld hl, 0								; Disable all timers (because its easier than disabling just timer 1)
+  152 D1:A8F9 22 30 00 F2 	ld (TIMER_CTRL_REG), hl		
+  153 D1:A8FD -  -  -  -  
+  154 D1:A8FD 21 1C 47 00 	ld hl, 00471Ch							; 18204(0000471Ch) ticks / 36.4 KHz(I have no idea where this number comes from, it just works, ok?) equals 0.5 seconds (little-endian)
+  155 D1:A901 22 00 00 F2 	ld (TIMER1_COUNTER), hl
+  156 D1:A905 22 04 00 F2 	ld (TIMER1_RESET_VAL), hl
+  157 D1:A909 3E 00 -  -  	ld a, 00h
+  158 D1:A90B 32 03 00 F2 	ld (TIMER1_COUNTER+3), a
+  159 D1:A90F 32 07 00 F2 	ld (TIMER1_RESET_VAL+3), a
+  160 D1:A913 -  -  -  -  
+  161 D1:A913 21 03 00 00 	ld hl, TIMER1_ON|TIMER1_CPU_CLK|TIMER1_COUNT_DOWN	; Settings for timer
+  162 D1:A917 22 30 00 F2 	ld (TIMER_CTRL_REG), hl
+  163 D1:A91B C9 -  -  -  	ret
+  164 D1:A91C -  -  -  -  
+  165 D1:A91C -  -  -  -  ;--------------------------------------------------
+  166 D1:A91C -  -  -  -  ; **Checks if the timer has hit 0**
+  167 D1:A91C -  -  -  -  ; Inputs: None
+  168 D1:A91C -  -  -  -  ; Outputs:
+  169 D1:A91C -  -  -  -  ;	- CF - Set if timer has hit 0, Reset otherwise
+  170 D1:A91C -  -  -  -  ;--------------------------------------------------
+  171 D1:A91C -  -  -  -  CheckTimer:
+  172 D1:A91C 3A 01 00 F2 	ld a, (TIMER1_COUNTER+1)
+  173 D1:A920 47 -  -  -  	ld b, a
+  174 D1:A921 3A 31 AD D1 	ld a, (PreviousTime)
+  175 D1:A925 B8 -  -  -  	cp b
+  176 D1:A926 -  -  -  -  
+  177 D1:A926 78 -  -  -  	ld a, b									; Save current time
+  178 D1:A927 32 31 AD D1 	ld (PreviousTime), a
+  179 D1:A92B -  -  -  -  
+  180 D1:A92B C9 -  -  -  	ret
+  181 D1:A92C -  -  -  -  
+  182 D1:A92C -  -  -  -  
+  183 D1:A92C -  -  -  -  ;--------------------------------------
+  184 D1:A92C -  -  -  -  ; **Gets AppVar stored in AppVarName**
+  185 D1:A92C -  -  -  -  ;--------------------------------------
+  186 D1:A92C -  -  -  -  GetAppVar:
+  187 D1:A92C 21 23 AD D1 	ld hl, AppVarName
+  188 D1:A930 CD 20 03 02 	call _Mov9ToOP1
+  189 D1:A934 -  -  -  -  
+  190 D1:A934 CD 0C 05 02 	call _ChkFindSym
+  191 D1:A938 DA BD A8 D1 	jp c, ErrorAppVarNotFound
+  192 D1:A93C -  -  -  -  
+  193 D1:A93C -  -  -  -  	; Check if AppVar is in RAM
+  194 D1:A93C CD 98 1F 02 	call _ChkInRam
+  195 D1:A940 -  -  -  -  
+  196 D1:A940 C2 C3 A8 D1 	jp nz, ErrorAppVarArchived
+  197 D1:A944 -  -  -  -  
+  198 D1:A944 -  -  -  -  	; Pointer to AppVar Data Section stored in de
+  199 D1:A944 ED 53 2E AD 
               D1 -  -  -  	ld (AppVarPointer), de
-  199 D1:A945 C9 -  -  -  	ret
-  200 D1:A946 -  -  -  -  
-  201 D1:A946 -  -  -  -  ;----------------------------------------------------------------
-  202 D1:A946 -  -  -  -  ; **Gets the last keypress and does the corrisponding function**
-  203 D1:A946 -  -  -  -  ; Params:
-  204 D1:A946 -  -  -  -  ;	- A: keycode
-  205 D1:A946 -  -  -  -  ;----------------------------------------------------------------
-  206 D1:A946 -  -  -  -  HandleKeyPress:
-  207 D1:A946 06 01 -  -  	ld b, 1
-  208 D1:A948 0E 01 -  -  	ld c, 1
-  209 D1:A94A -  -  -  -  
-  210 D1:A94A FE 0F -  -  	cp a, skClear
-  211 D1:A94C 28 36 -  -  	jr z, HandleKeyPress.Clear
-  212 D1:A94E FE 04 -  -  	cp a, skUp
-  213 D1:A950 28 0D -  -  	jr z, HandleKeyPress.Up
-  214 D1:A952 FE 01 -  -  	cp a, skDown
-  215 D1:A954 28 0F -  -  	jr z, HandleKeyPress.Down
-  216 D1:A956 FE 02 -  -  	cp a, skLeft
-  217 D1:A958 28 11 -  -  	jr z, HandleKeyPress.Left
-  218 D1:A95A FE 03 -  -  	cp a, skRight
-  219 D1:A95C 28 13 -  -  	jr z, HandleKeyPress.Right
-  220 D1:A95E C9 -  -  -  	ret
-  221 D1:A95F -  -  -  -  
-  222 D1:A95F -  -  -  -  HandleKeyPress.Up:
-  223 D1:A95F 0E 01 -  -  	ld c, Facing.Up
-  224 D1:A961 06 02 -  -  	ld b, Facing.Down
-  225 D1:A963 18 12 -  -  	jr HandleKeyPress.Direction.Next
-  226 D1:A965 -  -  -  -  HandleKeyPress.Down:
-  227 D1:A965 0E 02 -  -  	ld c, Facing.Down
-  228 D1:A967 06 01 -  -  	ld b, Facing.Up
-  229 D1:A969 18 0C -  -  	jr HandleKeyPress.Direction.Next
-  230 D1:A96B -  -  -  -  HandleKeyPress.Left:
-  231 D1:A96B 0E 04 -  -  	ld c, Facing.Left
-  232 D1:A96D 06 08 -  -  	ld b, Facing.Right
-  233 D1:A96F 18 06 -  -  	jr HandleKeyPress.Direction.Next
-  234 D1:A971 -  -  -  -  HandleKeyPress.Right:
-  235 D1:A971 0E 08 -  -  	ld c, Facing.Right
-  236 D1:A973 06 04 -  -  	ld b, Facing.Left
-  237 D1:A975 18 00 -  -  	jr HandleKeyPress.Direction.Next
-  238 D1:A977 -  -  -  -  
-  239 D1:A977 -  -  -  -  HandleKeyPress.Direction.Next:
-  240 D1:A977 3A E9 AC D1 	ld a, (SnakeFacingPrevious)
-  241 D1:A97B B8 -  -  -  	cp b
-  242 D1:A97C 28 05 -  -  	jr z, HandleKeyPress.Direction.Done
-  243 D1:A97E -  -  -  -  
-  244 D1:A97E 79 -  -  -  	ld a, c
-  245 D1:A97F 32 E6 AC D1 	ld (SnakeFacing), a
-  246 D1:A983 -  -  -  -  HandleKeyPress.Direction.Done:
-  247 D1:A983 C9 -  -  -  	ret
-  248 D1:A984 -  -  -  -  
-  249 D1:A984 -  -  -  -  HandleKeyPress.Clear:
-  250 D1:A984 78 -  -  -  	ld a, b
-  251 D1:A985 32 39 AC D1 	ld (ExitPrgm), a
-  252 D1:A989 C9 -  -  -  	ret
-  253 D1:A98A -  -  -  -  
-  254 D1:A98A -  -  -  -  
-  255 D1:A98A -  -  -  -  
-  256 D1:A98A -  -  -  -  ;---------------------------------------
-  257 D1:A98A -  -  -  -  ; **Draws the snake to the LCD_BUFFER**
-  258 D1:A98A -  -  -  -  ;---------------------------------------
-  259 D1:A98A -  -  -  -  DrawSnake:
-  260 D1:A98A FD 21 00 00 
+  200 D1:A949 C9 -  -  -  	ret
+  201 D1:A94A -  -  -  -  
+  202 D1:A94A -  -  -  -  ;----------------------------------------------------------------
+  203 D1:A94A -  -  -  -  ; **Gets the last keypress and does the corrisponding function**
+  204 D1:A94A -  -  -  -  ; Params:
+  205 D1:A94A -  -  -  -  ;	- A: keycode
+  206 D1:A94A -  -  -  -  ;----------------------------------------------------------------
+  207 D1:A94A -  -  -  -  HandleKeyPress:
+  208 D1:A94A 06 01 -  -  	ld b, 1
+  209 D1:A94C 0E 01 -  -  	ld c, 1
+  210 D1:A94E -  -  -  -  
+  211 D1:A94E FE 0F -  -  	cp a, skClear
+  212 D1:A950 28 36 -  -  	jr z, HandleKeyPress.Clear
+  213 D1:A952 FE 04 -  -  	cp a, skUp
+  214 D1:A954 28 0D -  -  	jr z, HandleKeyPress.Up
+  215 D1:A956 FE 01 -  -  	cp a, skDown
+  216 D1:A958 28 0F -  -  	jr z, HandleKeyPress.Down
+  217 D1:A95A FE 02 -  -  	cp a, skLeft
+  218 D1:A95C 28 11 -  -  	jr z, HandleKeyPress.Left
+  219 D1:A95E FE 03 -  -  	cp a, skRight
+  220 D1:A960 28 13 -  -  	jr z, HandleKeyPress.Right
+  221 D1:A962 C9 -  -  -  	ret
+  222 D1:A963 -  -  -  -  
+  223 D1:A963 -  -  -  -  HandleKeyPress.Up:
+  224 D1:A963 0E 01 -  -  	ld c, Facing.Up
+  225 D1:A965 06 02 -  -  	ld b, Facing.Down
+  226 D1:A967 18 12 -  -  	jr HandleKeyPress.Direction.Next
+  227 D1:A969 -  -  -  -  HandleKeyPress.Down:
+  228 D1:A969 0E 02 -  -  	ld c, Facing.Down
+  229 D1:A96B 06 01 -  -  	ld b, Facing.Up
+  230 D1:A96D 18 0C -  -  	jr HandleKeyPress.Direction.Next
+  231 D1:A96F -  -  -  -  HandleKeyPress.Left:
+  232 D1:A96F 0E 04 -  -  	ld c, Facing.Left
+  233 D1:A971 06 08 -  -  	ld b, Facing.Right
+  234 D1:A973 18 06 -  -  	jr HandleKeyPress.Direction.Next
+  235 D1:A975 -  -  -  -  HandleKeyPress.Right:
+  236 D1:A975 0E 08 -  -  	ld c, Facing.Right
+  237 D1:A977 06 04 -  -  	ld b, Facing.Left
+  238 D1:A979 18 00 -  -  	jr HandleKeyPress.Direction.Next
+  239 D1:A97B -  -  -  -  
+  240 D1:A97B -  -  -  -  HandleKeyPress.Direction.Next:
+  241 D1:A97B 3A 38 AD D1 	ld a, (SnakeFacingPrevious)
+  242 D1:A97F B8 -  -  -  	cp b
+  243 D1:A980 28 05 -  -  	jr z, HandleKeyPress.Direction.Done
+  244 D1:A982 -  -  -  -  
+  245 D1:A982 79 -  -  -  	ld a, c
+  246 D1:A983 32 35 AD D1 	ld (SnakeFacing), a
+  247 D1:A987 -  -  -  -  HandleKeyPress.Direction.Done:
+  248 D1:A987 C9 -  -  -  	ret
+  249 D1:A988 -  -  -  -  
+  250 D1:A988 -  -  -  -  HandleKeyPress.Clear:
+  251 D1:A988 78 -  -  -  	ld a, b
+  252 D1:A989 32 87 AC D1 	ld (ExitPrgm), a
+  253 D1:A98D C9 -  -  -  	ret
+  254 D1:A98E -  -  -  -  
+  255 D1:A98E -  -  -  -  
+  256 D1:A98E -  -  -  -  ;----------------------------------------
+  257 D1:A98E -  -  -  -  ; **Draws that Apple to the LCD_BUFFER**
+  258 D1:A98E -  -  -  -  ;----------------------------------------
+  259 D1:A98E -  -  -  -  DrawApple:
+  260 D1:A98E 2A 2E AD D1 	ld hl, (AppVarPointer)
+  261 D1:A992 11 00 02 00 	ld de, Apple
+  262 D1:A996 19 -  -  -  	add hl, de
+  263 D1:A997 3A 32 AD D1 	ld a, (ApplePos)
+  264 D1:A99B DD 6F -  -  	ld ixl, a
+  265 D1:A99D 3A 33 AD D1 	ld a, (ApplePos+1)
+  266 D1:A9A1 CD CE AB D1 	call SetTile
+  267 D1:A9A5 C9 -  -  -  	ret
+  268 D1:A9A6 -  -  -  -  
+  269 D1:A9A6 -  -  -  -  ;---------------------------------------
+  270 D1:A9A6 -  -  -  -  ; **Draws the Snake to the LCD_BUFFER**
+  271 D1:A9A6 -  -  -  -  ;---------------------------------------
+  272 D1:A9A6 -  -  -  -  DrawSnake:
+  273 D1:A9A6 FD 21 00 00 
               00 -  -  -  	ld iy, 0
-  261 D1:A98F DD 21 EF AC 
+  274 D1:A9AB DD 21 3E AD 
               D1 -  -  -  	ld ix, Snake
-  262 D1:A994 ED 4B EC AC 
+  275 D1:A9B0 ED 4B 3B AD 
               D1 -  -  -  	ld bc, (SnakeLength)
-  263 D1:A999 03 -  -  -  	inc bc
-  264 D1:A99A -  -  -  -  DrawSegment:
-  265 D1:A99A 0B -  -  -  	dec bc
-  266 D1:A99B C5 -  -  -  	push bc											; Save bc
-  267 D1:A99C -  -  -  -  
-  268 D1:A99C DD 31 00 -  	ld iy, (ix)
-  269 D1:A99F DD E5 -  -  	push ix											; Save ix
-  270 D1:A9A1 FD 7E 03 -  	ld a, (iy+SnakeSegment.Type)
-  271 D1:A9A4 FD 46 00 -  	ld b, (iy+SnakeSegment.Facing)
-  272 D1:A9A7 -  -  -  -  
-  273 D1:A9A7 -  -  -  -  
-  274 D1:A9A7 -  -  -  -  
-  275 D1:A9A7 2A E0 AC D1 	ld hl, (AppVarPointer)
-  276 D1:A9AB 11 00 00 00 	ld de, 0
-  277 D1:A9AF -  -  -  -  
-  278 D1:A9AF FE 00 -  -  	cp a, Type.Head
-  279 D1:A9B1 28 09 -  -  	jr z, DrawSegment.Head
-  280 D1:A9B3 FE 01 -  -  	cp a, Type.Body
-  281 D1:A9B5 28 20 -  -  	jr z, DrawSegment.Body
-  282 D1:A9B7 -  -  -  -  
-  283 D1:A9B7 -  -  -  -  ; Otherwise, Its tail
-  284 D1:A9B7 -  -  -  -  	;cp a, Type.Tail
-  285 D1:A9B7 -  -  -  -  	;jr z, DrawSegment.Tail
-  286 D1:A9B7 -  -  -  -  
-  287 D1:A9B7 -  -  -  -  ;DrawSegment.Tail:
-  288 D1:A9B7 11 00 08 00 	ld de, TailUp-HeadUp
-  289 D1:A9BB 19 -  -  -  	add hl, de
-  290 D1:A9BC -  -  -  -  DrawSegment.Head:
-  291 D1:A9BC 11 00 10 00 	ld de, HeadUp
-  292 D1:A9C0 19 -  -  -  	add hl, de
-  293 D1:A9C1 -  -  -  -  
-  294 D1:A9C1 78 -  -  -  	ld a, b
-  295 D1:A9C2 -  -  -  -  ; Decide the direction
-  296 D1:A9C2 -  -  -  -  	; Get the size of 1 tile in the AppVar
-  297 D1:A9C2 01 00 02 00 	ld bc, TILE_WIDTH*TILE_HEIGHT*BYTES_PER_PIXEL
-  298 D1:A9C6 -  -  -  -  
-  299 D1:A9C6 FE 01 -  -  	cp a, Facing.Up
-  300 D1:A9C8 28 0B -  -  	jr z, DrawSegment.Head_Tail.Up
-  301 D1:A9CA FE 02 -  -  	cp a, Facing.Down
-  302 D1:A9CC 28 06 -  -  	jr z, DrawSegment.Head_Tail.Down
-  303 D1:A9CE FE 04 -  -  	cp a, Facing.Left
-  304 D1:A9D0 28 01 -  -  	jr z, DrawSegment.Head_Tail.Left
-  305 D1:A9D2 -  -  -  -  
-  306 D1:A9D2 -  -  -  -  ; Otherwse, its right		; If Right, it needs to add 3
-  307 D1:A9D2 09 -  -  -  	add hl, bc
-  308 D1:A9D3 -  -  -  -  DrawSegment.Head_Tail.Left:	; If Left, it needs to add 2
-  309 D1:A9D3 09 -  -  -  	add hl, bc
-  310 D1:A9D4 -  -  -  -  DrawSegment.Head_Tail.Down:	; If down, it needs to add 1
-  311 D1:A9D4 09 -  -  -  	add hl, bc
-  312 D1:A9D5 -  -  -  -  DrawSegment.Head_Tail.Up:	; If up, its already there
-  313 D1:A9D5 18 43 -  -  	jr DrawSegment.Done
-  314 D1:A9D7 -  -  -  -  
-  315 D1:A9D7 -  -  -  -  DrawSegment.Body:
-  316 D1:A9D7 DD E1 -  -  	pop ix
-  317 D1:A9D9 DD E5 -  -  	push ix											; Get ix and immediately save it again
-  318 D1:A9DB -  -  -  -  
-  319 D1:A9DB -  -  -  -  	; Get previous segment
-  320 D1:A9DB FD E5 -  -  	push iy
-  321 D1:A9DD DD 31 FD -  	ld iy, (ix-3)
-  322 D1:A9E0 FD 7E 00 -  	ld a, (iy+SnakeSegment.Facing)
-  323 D1:A9E3 FD E1 -  -  	pop iy
-  324 D1:A9E5 -  -  -  -  	; a = Previous segment direction
-  325 D1:A9E5 -  -  -  -  	; b = Current segment direction
-  326 D1:A9E5 B8 -  -  -  	cp a, b
-  327 D1:A9E6 F5 -  -  -  	push af											; Save the flags
-  328 D1:A9E7 -  -  -  -  
-  329 D1:A9E7 -  -  -  -  	; Move the previous segment direction into the high-order 4-bits of a
-  330 D1:A9E7 CB 27 -  -  	sla a
-  331 D1:A9E9 CB 27 -  -  	sla a
-  332 D1:A9EB CB 27 -  -  	sla a
-  333 D1:A9ED CB 27 -  -  	sla a
-  334 D1:A9EF B0 -  -  -  	or b
-  335 D1:A9F0 -  -  -  -  
-  336 D1:A9F0 4F -  -  -  	ld c, a
-  337 D1:A9F1 F1 -  -  -  	pop af											; Restore the flags
-  338 D1:A9F2 79 -  -  -  	ld a, c
-  339 D1:A9F3 -  -  -  -  
-  340 D1:A9F3 -  -  -  -  	; Do this so that a is still shifted and or-ed
-  341 D1:A9F3 28 0A -  -  	jr z, DrawSegment.Equal
-  342 D1:A9F5 -  -  -  -  
-  343 D1:A9F5 ED 64 21 -  	tst a, Facing.Up|(Facing.Down<<4)
-  344 D1:A9F8 20 0B -  -  	jr nz, DrawSegment.Body.Up
-  345 D1:A9FA ED 64 12 -  	tst a, Facing.Down|(Facing.Up<<4)
-  346 D1:A9FD 20 0C -  -  	jr nz, DrawSegment.Body.Down
-  347 D1:A9FF -  -  -  -  
-  348 D1:A9FF -  -  -  -  DrawSegment.Equal:
-  349 D1:A9FF 11 00 0C 00 	ld de, BodyVertical
-  350 D1:AA03 18 0A -  -  	jr DrawSegment.Body.Next
-  351 D1:AA05 -  -  -  -  
-  352 D1:AA05 -  -  -  -  DrawSegment.Body.Up:
-  353 D1:AA05 11 00 04 00 	ld de, RightToTop
-  354 D1:AA09 18 04 -  -  	jr DrawSegment.Body.Next
-  355 D1:AA0B -  -  -  -  
-  356 D1:AA0B -  -  -  -  DrawSegment.Body.Down:
-  357 D1:AA0B 11 00 08 00 	ld de, BottomToRight
-  358 D1:AA0F -  -  -  -  
-  359 D1:AA0F -  -  -  -  DrawSegment.Body.Next:
-  360 D1:AA0F 19 -  -  -  	add hl, de
-  361 D1:AA10 -  -  -  -  
-  362 D1:AA10 ED 64 84 -  	tst a, Facing.Left|(Facing.Right<<4)
-  363 D1:AA13 28 05 -  -  	jr z, DrawSegment.Done
-  364 D1:AA15 -  -  -  -  
-  365 D1:AA15 11 00 02 00 	ld de, TILE_WIDTH*TILE_HEIGHT*BYTES_PER_PIXEL
-  366 D1:AA19 19 -  -  -  	add hl, de
-  367 D1:AA1A -  -  -  -  DrawSegment.Done:
-  368 D1:AA1A FD 7E 01 -  	ld a, (iy+SnakeSegment.Pos.X)
-  369 D1:AA1D DD 6F -  -  	ld ixl, a
-  370 D1:AA1F FD 7E 02 -  	ld a, (iy+SnakeSegment.Pos.Y)
-  371 D1:AA22 CD 80 AB D1 	call SetTile
-  372 D1:AA26 -  -  -  -  	
-  373 D1:AA26 DD E1 -  -  	pop ix											; Restore ix
-  374 D1:AA28 -  -  -  -  	; Increment ix to the next pointer for the cycle after this one
-  375 D1:AA28 01 03 00 00 	ld bc, 3
-  376 D1:AA2C DD 09 -  -  	add ix, bc
-  377 D1:AA2E C1 -  -  -  	pop bc											; Restore bc
-  378 D1:AA2F -  -  -  -  	; If bc == 0, return
-  379 D1:AA2F 78 -  -  -  	ld a, b
-  380 D1:AA30 B7 -  -  -  	or a
-  381 D1:AA31 C2 9A A9 D1 	jp nz, DrawSegment
-  382 D1:AA35 79 -  -  -  	ld a, c
-  383 D1:AA36 B7 -  -  -  	or a
-  384 D1:AA37 C2 9A A9 D1 	jp nz, DrawSegment
-  385 D1:AA3B C9 -  -  -  	ret
-  386 D1:AA3C -  -  -  -  
-  387 D1:AA3C -  -  -  -  
-  388 D1:AA3C -  -  -  -  
-  389 D1:AA3C -  -  -  -  
-  390 D1:AA3C -  -  -  -  ;------------------------------------
-  391 D1:AA3C -  -  -  -  ; **Resets the screen to all black**
-  392 D1:AA3C -  -  -  -  ;------------------------------------
-  393 D1:AA3C -  -  -  -  ResetScreen:
-  394 D1:AA3C 21 00 00 D4 	ld hl, LCD_BUFFER
-  395 D1:AA40 01 00 58 02 	ld bc, LCD_AREA*BYTES_PER_PIXEL
-  396 D1:AA44 -  -  -  -  RestScreen.clearLoop:
-  397 D1:AA44 36 00 -  -  	ld (hl), 0
-  398 D1:AA46 23 -  -  -  	inc hl
-  399 D1:AA47 0B -  -  -  	dec bc
-  400 D1:AA48 -  -  -  -  	; Check of bc is zero
-  401 D1:AA48 ED 43 23 B5 
+  276 D1:A9B5 03 -  -  -  	inc bc
+  277 D1:A9B6 -  -  -  -  DrawSegment:
+  278 D1:A9B6 0B -  -  -  	dec bc
+  279 D1:A9B7 C5 -  -  -  	push bc											; Save bc
+  280 D1:A9B8 -  -  -  -  
+  281 D1:A9B8 DD 31 00 -  	ld iy, (ix)
+  282 D1:A9BB DD E5 -  -  	push ix											; Save ix
+  283 D1:A9BD FD 7E 03 -  	ld a, (iy+SnakeSegment.Type)
+  284 D1:A9C0 FD 46 00 -  	ld b, (iy+SnakeSegment.Facing)
+  285 D1:A9C3 -  -  -  -  
+  286 D1:A9C3 -  -  -  -  
+  287 D1:A9C3 -  -  -  -  
+  288 D1:A9C3 2A 2E AD D1 	ld hl, (AppVarPointer)
+  289 D1:A9C7 11 00 00 00 	ld de, 0
+  290 D1:A9CB -  -  -  -  
+  291 D1:A9CB FE 00 -  -  	cp a, Type.Head
+  292 D1:A9CD 28 09 -  -  	jr z, DrawSegment.Head
+  293 D1:A9CF FE 01 -  -  	cp a, Type.Body
+  294 D1:A9D1 28 20 -  -  	jr z, DrawSegment.Body
+  295 D1:A9D3 -  -  -  -  
+  296 D1:A9D3 -  -  -  -  ; Otherwise, Its tail
+  297 D1:A9D3 -  -  -  -  	;cp a, Type.Tail
+  298 D1:A9D3 -  -  -  -  	;jr z, DrawSegment.Tail
+  299 D1:A9D3 -  -  -  -  
+  300 D1:A9D3 -  -  -  -  ;DrawSegment.Tail:
+  301 D1:A9D3 11 00 08 00 	ld de, TailUp-HeadUp
+  302 D1:A9D7 19 -  -  -  	add hl, de
+  303 D1:A9D8 -  -  -  -  DrawSegment.Head:
+  304 D1:A9D8 11 00 10 00 	ld de, HeadUp
+  305 D1:A9DC 19 -  -  -  	add hl, de
+  306 D1:A9DD -  -  -  -  
+  307 D1:A9DD 78 -  -  -  	ld a, b
+  308 D1:A9DE -  -  -  -  ; Decide the direction
+  309 D1:A9DE -  -  -  -  	; Get the size of 1 tile in the AppVar
+  310 D1:A9DE 01 00 02 00 	ld bc, TILE_WIDTH*TILE_HEIGHT*BYTES_PER_PIXEL
+  311 D1:A9E2 -  -  -  -  
+  312 D1:A9E2 FE 01 -  -  	cp a, Facing.Up
+  313 D1:A9E4 28 0B -  -  	jr z, DrawSegment.Head_Tail.Up
+  314 D1:A9E6 FE 02 -  -  	cp a, Facing.Down
+  315 D1:A9E8 28 06 -  -  	jr z, DrawSegment.Head_Tail.Down
+  316 D1:A9EA FE 04 -  -  	cp a, Facing.Left
+  317 D1:A9EC 28 01 -  -  	jr z, DrawSegment.Head_Tail.Left
+  318 D1:A9EE -  -  -  -  
+  319 D1:A9EE -  -  -  -  ; Otherwse, its right		; If Right, it needs to add 3
+  320 D1:A9EE 09 -  -  -  	add hl, bc
+  321 D1:A9EF -  -  -  -  DrawSegment.Head_Tail.Left:	; If Left, it needs to add 2
+  322 D1:A9EF 09 -  -  -  	add hl, bc
+  323 D1:A9F0 -  -  -  -  DrawSegment.Head_Tail.Down:	; If down, it needs to add 1
+  324 D1:A9F0 09 -  -  -  	add hl, bc
+  325 D1:A9F1 -  -  -  -  DrawSegment.Head_Tail.Up:	; If up, its already there
+  326 D1:A9F1 18 43 -  -  	jr DrawSegment.Done
+  327 D1:A9F3 -  -  -  -  
+  328 D1:A9F3 -  -  -  -  DrawSegment.Body:
+  329 D1:A9F3 DD E1 -  -  	pop ix
+  330 D1:A9F5 DD E5 -  -  	push ix											; Get ix and immediately save it again
+  331 D1:A9F7 -  -  -  -  
+  332 D1:A9F7 -  -  -  -  	; Get previous segment
+  333 D1:A9F7 FD E5 -  -  	push iy
+  334 D1:A9F9 DD 31 FD -  	ld iy, (ix-3)
+  335 D1:A9FC FD 7E 00 -  	ld a, (iy+SnakeSegment.Facing)
+  336 D1:A9FF FD E1 -  -  	pop iy
+  337 D1:AA01 -  -  -  -  	; a = Previous segment direction
+  338 D1:AA01 -  -  -  -  	; b = Current segment direction
+  339 D1:AA01 B8 -  -  -  	cp a, b
+  340 D1:AA02 F5 -  -  -  	push af											; Save the flags
+  341 D1:AA03 -  -  -  -  
+  342 D1:AA03 -  -  -  -  	; Move the previous segment direction into the high-order 4-bits of a
+  343 D1:AA03 CB 27 -  -  	sla a
+  344 D1:AA05 CB 27 -  -  	sla a
+  345 D1:AA07 CB 27 -  -  	sla a
+  346 D1:AA09 CB 27 -  -  	sla a
+  347 D1:AA0B B0 -  -  -  	or b
+  348 D1:AA0C -  -  -  -  
+  349 D1:AA0C 4F -  -  -  	ld c, a
+  350 D1:AA0D F1 -  -  -  	pop af											; Restore the flags
+  351 D1:AA0E 79 -  -  -  	ld a, c
+  352 D1:AA0F -  -  -  -  
+  353 D1:AA0F -  -  -  -  	; Do this so that a is still shifted and or-ed
+  354 D1:AA0F 28 0A -  -  	jr z, DrawSegment.Equal
+  355 D1:AA11 -  -  -  -  
+  356 D1:AA11 ED 64 21 -  	tst a, Facing.Up|(Facing.Down<<4)
+  357 D1:AA14 20 0B -  -  	jr nz, DrawSegment.Body.Up
+  358 D1:AA16 ED 64 12 -  	tst a, Facing.Down|(Facing.Up<<4)
+  359 D1:AA19 20 0C -  -  	jr nz, DrawSegment.Body.Down
+  360 D1:AA1B -  -  -  -  
+  361 D1:AA1B -  -  -  -  DrawSegment.Equal:
+  362 D1:AA1B 11 00 0C 00 	ld de, BodyVertical
+  363 D1:AA1F 18 0A -  -  	jr DrawSegment.Body.Next
+  364 D1:AA21 -  -  -  -  
+  365 D1:AA21 -  -  -  -  DrawSegment.Body.Up:
+  366 D1:AA21 11 00 04 00 	ld de, RightToTop
+  367 D1:AA25 18 04 -  -  	jr DrawSegment.Body.Next
+  368 D1:AA27 -  -  -  -  
+  369 D1:AA27 -  -  -  -  DrawSegment.Body.Down:
+  370 D1:AA27 11 00 08 00 	ld de, BottomToRight
+  371 D1:AA2B -  -  -  -  
+  372 D1:AA2B -  -  -  -  DrawSegment.Body.Next:
+  373 D1:AA2B 19 -  -  -  	add hl, de
+  374 D1:AA2C -  -  -  -  
+  375 D1:AA2C ED 64 84 -  	tst a, Facing.Left|(Facing.Right<<4)
+  376 D1:AA2F 28 05 -  -  	jr z, DrawSegment.Done
+  377 D1:AA31 -  -  -  -  
+  378 D1:AA31 11 00 02 00 	ld de, TILE_WIDTH*TILE_HEIGHT*BYTES_PER_PIXEL
+  379 D1:AA35 19 -  -  -  	add hl, de
+  380 D1:AA36 -  -  -  -  DrawSegment.Done:
+  381 D1:AA36 FD 7E 01 -  	ld a, (iy+SnakeSegment.Pos.X)
+  382 D1:AA39 DD 6F -  -  	ld ixl, a
+  383 D1:AA3B FD 7E 02 -  	ld a, (iy+SnakeSegment.Pos.Y)
+  384 D1:AA3E CD CE AB D1 	call SetTile
+  385 D1:AA42 -  -  -  -  	
+  386 D1:AA42 DD E1 -  -  	pop ix											; Restore ix
+  387 D1:AA44 -  -  -  -  	; Increment ix to the next pointer for the cycle after this one
+  388 D1:AA44 01 03 00 00 	ld bc, 3
+  389 D1:AA48 DD 09 -  -  	add ix, bc
+  390 D1:AA4A C1 -  -  -  	pop bc											; Restore bc
+  391 D1:AA4B -  -  -  -  	; If bc == 0, return
+  392 D1:AA4B 78 -  -  -  	ld a, b
+  393 D1:AA4C B7 -  -  -  	or a
+  394 D1:AA4D C2 B6 A9 D1 	jp nz, DrawSegment
+  395 D1:AA51 79 -  -  -  	ld a, c
+  396 D1:AA52 B7 -  -  -  	or a
+  397 D1:AA53 C2 B6 A9 D1 	jp nz, DrawSegment
+  398 D1:AA57 C9 -  -  -  	ret
+  399 D1:AA58 -  -  -  -  
+  400 D1:AA58 -  -  -  -  
+  401 D1:AA58 -  -  -  -  
+  402 D1:AA58 -  -  -  -  
+  403 D1:AA58 -  -  -  -  ;------------------------------------
+  404 D1:AA58 -  -  -  -  ; **Resets the screen to all black**
+  405 D1:AA58 -  -  -  -  ;------------------------------------
+  406 D1:AA58 -  -  -  -  ResetScreen:
+  407 D1:AA58 21 00 00 D4 	ld hl, LCD_BUFFER
+  408 D1:AA5C 01 00 58 02 	ld bc, LCD_AREA*BYTES_PER_PIXEL
+  409 D1:AA60 -  -  -  -  RestScreen.clearLoop:
+  410 D1:AA60 36 00 -  -  	ld (hl), 0
+  411 D1:AA62 23 -  -  -  	inc hl
+  412 D1:AA63 0B -  -  -  	dec bc
+  413 D1:AA64 -  -  -  -  	; Check of bc is zero
+  414 D1:AA64 ED 43 72 B5 
               D1 -  -  -  	ld (Data), bc										; bc is 24-bit so I have to load it into memory, then load each bit seperately and or them all together
-  402 D1:AA4D 3A 25 B5 D1 	ld a, (Data+2)
-  403 D1:AA51 B0 -  -  -  	or b
-  404 D1:AA52 B1 -  -  -  	or c
-  405 D1:AA53 20 EF -  -  	jr nz, RestScreen.clearLoop
-  406 D1:AA55 CD 5A AA D1 	call BlitScreen
-  407 D1:AA59 C9 -  -  -  	ret
-  408 D1:AA5A -  -  -  -  
-  409 D1:AA5A -  -  -  -  ;
-  410 D1:AA5A -  -  -  -  ; Blits the frame buffer to the screen
-  411 D1:AA5A -  -  -  -  ;
-  412 D1:AA5A -  -  -  -  BlitScreen:
-  413 D1:AA5A CD 44 45 00 	call $4544    ; _BlitLCD BCALL address for OS 5.8.x
-  414 D1:AA5E C9 -  -  -  	ret
-  415 D1:AA5F -  -  -  -  
-  416 D1:AA5F -  -  -  -  
-  417 D1:AA5F -  -  -  -  
-  418 D1:AA5F -  -  -  -  ; TODO: Finish this function
-  419 D1:AA5F -  -  -  -  ;----------------------------------
-  420 D1:AA5F -  -  -  -  ;**Moves the snake 1 Tile forward**
-  421 D1:AA5F -  -  -  -  ;----------------------------------
-  422 D1:AA5F -  -  -  -  MoveSnake:
-  423 D1:AA5F -  -  -  -  	; Move the current direction into the previous direction
-  424 D1:AA5F 3A E6 AC D1 	ld a, (SnakeFacing)
-  425 D1:AA63 32 E9 AC D1 	ld (SnakeFacingPrevious), a
-  426 D1:AA67 -  -  -  -  
-  427 D1:AA67 2A E0 AC D1 	ld hl, (AppVarPointer)
-  428 D1:AA6B 01 00 00 00 	ld bc, BlackTile
-  429 D1:AA6F 09 -  -  -  	add hl, bc
-  430 D1:AA70 FD 2A EF AC 
+  415 D1:AA69 3A 74 B5 D1 	ld a, (Data+2)
+  416 D1:AA6D B0 -  -  -  	or b
+  417 D1:AA6E B1 -  -  -  	or c
+  418 D1:AA6F 20 EF -  -  	jr nz, RestScreen.clearLoop
+  419 D1:AA71 CD 76 AA D1 	call BlitScreen
+  420 D1:AA75 C9 -  -  -  	ret
+  421 D1:AA76 -  -  -  -  
+  422 D1:AA76 -  -  -  -  ;
+  423 D1:AA76 -  -  -  -  ; Blits the frame buffer to the screen
+  424 D1:AA76 -  -  -  -  ;
+  425 D1:AA76 -  -  -  -  BlitScreen:
+  426 D1:AA76 CD 44 45 00 	call $4544    ; _BlitLCD BCALL address for OS 5.8.x
+  427 D1:AA7A C9 -  -  -  	ret
+  428 D1:AA7B -  -  -  -  
+  429 D1:AA7B -  -  -  -  
+  430 D1:AA7B -  -  -  -  
+  431 D1:AA7B -  -  -  -  ; TODO: Finish this function
+  432 D1:AA7B -  -  -  -  ;----------------------------------
+  433 D1:AA7B -  -  -  -  ;**Moves the snake 1 Tile forward**
+  434 D1:AA7B -  -  -  -  ;----------------------------------
+  435 D1:AA7B -  -  -  -  MoveSnake:
+  436 D1:AA7B -  -  -  -  	; Move the current direction into the previous direction
+  437 D1:AA7B 3A 35 AD D1 	ld a, (SnakeFacing)
+  438 D1:AA7F 32 38 AD D1 	ld (SnakeFacingPrevious), a
+  439 D1:AA83 -  -  -  -  
+  440 D1:AA83 -  -  -  -  	; Set old tail to a black tile
+  441 D1:AA83 2A 2E AD D1 	ld hl, (AppVarPointer)
+  442 D1:AA87 01 00 00 00 	ld bc, BlackTile
+  443 D1:AA8B 09 -  -  -  	add hl, bc
+  444 D1:AA8C FD 2A 3E AD 
               D1 -  -  -  	ld iy, (Snake)								; typeof(iy) = SnakeSegment*
-  431 D1:AA75 FD 46 01 -  	ld b, (iy+SnakeSegment.Pos.X)				; typeof(iy) = SnakeSegment.X
-  432 D1:AA78 DD 68 -  -  	ld ixl, b
-  433 D1:AA7A FD 7E 02 -  	ld a, (iy+SnakeSegment.Pos.Y)				; typeof(iy) = SnakeSegment.Y
-  434 D1:AA7D CD 80 AB D1 	call SetTile
-  435 D1:AA81 -  -  -  -  
-  436 D1:AA81 ED 4B EC AC 
+  445 D1:AA91 FD 46 01 -  	ld b, (iy+SnakeSegment.Pos.X)				; typeof(iy) = SnakeSegment.X
+  446 D1:AA94 DD 68 -  -  	ld ixl, b
+  447 D1:AA96 FD 7E 02 -  	ld a, (iy+SnakeSegment.Pos.Y)				; typeof(iy) = SnakeSegment.Y
+  448 D1:AA99 CD CE AB D1 	call SetTile
+  449 D1:AA9D -  -  -  -  
+  450 D1:AA9D -  -  -  -  
+  451 D1:AA9D -  -  -  -  	; Get head pointer
+  452 D1:AA9D ED 4B 3B AD 
               D1 -  -  -  	ld bc, (SnakeLength)
-  437 D1:AA86 0B -  -  -  	dec bc										; Otherwise off-by-one error, reads 3 bytes farther than its supposed to
-  438 D1:AA87 3E 03 -  -  	ld a, 3
-  439 D1:AA89 CD BD AB D1 	call mul
-  440 D1:AA8D 22 23 B5 D1 	ld (Data), hl								; Save mul result
-  441 D1:AA91 01 EF AC D1 	ld bc, Snake
-  442 D1:AA95 09 -  -  -  	add hl, bc									; hl = head SnakeSegment**
-  443 D1:AA96 22 26 B5 D1 	ld (Data+3), hl								; Save head SnakeSegment**
-  444 D1:AA9A -  -  -  -  
-  445 D1:AA9A ED 37 -  -  	ld ix, (hl)									; ix = head SnakeSegment*
-  446 D1:AA9C 3A E6 AC D1 	ld a, (SnakeFacing)
-  447 D1:AAA0 DD 77 00 -  	ld (ix+SnakeSegment.Facing), a				; Set the old head to be facing the right direction (do this before the copy)
-  448 D1:AAA3 -  -  -  -  	
-  449 D1:AAA3 -  -  -  -  	; Create new head
-  450 D1:AAA3 ED 17 -  -  	ld de, (hl)									; Copy head SnakeSegment** into de
-  451 D1:AAA5 ED 27 -  -  	ld hl, (hl)									; Copy head SnakeSegment** into hl
-  452 D1:AAA7 -  -  -  -  
-  453 D1:AAA7 01 04 00 00 	ld bc, SnakeSegment_Size
-  454 D1:AAAB 09 -  -  -  	add hl, bc									; Add offset
-  455 D1:AAAC EB -  -  -  	ex de, hl									; Can't do "add de, bc"
-  456 D1:AAAD ED 53 29 B5 
+  453 D1:AAA2 0B -  -  -  	dec bc										; Otherwise off-by-one error, reads 3 bytes farther than its supposed to
+  454 D1:AAA3 3E 03 -  -  	ld a, 3
+  455 D1:AAA5 CD 0B AC D1 	call mul
+  456 D1:AAA9 22 72 B5 D1 	ld (Data), hl								; Save mul result
+  457 D1:AAAD 01 3E AD D1 	ld bc, Snake
+  458 D1:AAB1 09 -  -  -  	add hl, bc									; hl = head SnakeSegment**
+  459 D1:AAB2 22 75 B5 D1 	ld (Data+3), hl								; Save head SnakeSegment**
+  460 D1:AAB6 -  -  -  -  
+  461 D1:AAB6 -  -  -  -  	; Set old head direction
+  462 D1:AAB6 ED 37 -  -  	ld ix, (hl)									; ix = head SnakeSegment*
+  463 D1:AAB8 3A 35 AD D1 	ld a, (SnakeFacing)
+  464 D1:AABC DD 77 00 -  	ld (ix+SnakeSegment.Facing), a				; Set the old head to be facing the right direction (do this before the copy)
+  465 D1:AABF -  -  -  -  	
+  466 D1:AABF -  -  -  -  	; Create new head
+  467 D1:AABF ED 17 -  -  	ld de, (hl)									; Copy head SnakeSegment** into de
+  468 D1:AAC1 ED 27 -  -  	ld hl, (hl)									; Copy head SnakeSegment** into hl
+  469 D1:AAC3 01 04 00 00 	ld bc, SnakeSegment_Size
+  470 D1:AAC7 09 -  -  -  	add hl, bc									; Add offset
+  471 D1:AAC8 EB -  -  -  	ex de, hl									; Can't do "add de, bc"
+  472 D1:AAC9 ED 53 78 B5 
               D1 -  -  -  	ld (Data+6), de								; Save the new pointer
-  457 D1:AAB2 ED B0 -  -  	ldir										; Move current head to next segment
-  458 D1:AAB4 -  -  -  -  
-  459 D1:AAB4 -  -  -  -  	; Set old head to be a body tile
-  460 D1:AAB4 DD 36 03 01 	ld (ix+SnakeSegment.Type), Type.Body		; Set the old head to be a body
-  461 D1:AAB8 -  -  -  -  
-  462 D1:AAB8 -  -  -  -  	; Shift all of the pointers up by 1
-  463 D1:AAB8 21 EF AC D1 	ld hl, Snake
-  464 D1:AABC 23 -  -  -  	inc hl
-  465 D1:AABD 23 -  -  -  	inc hl
-  466 D1:AABE 23 -  -  -  	inc hl
-  467 D1:AABF 11 EF AC D1 	ld de, Snake
-  468 D1:AAC3 ED 4B 23 B5 
-              D1 -  -  -  	ld bc, (Data)								; Get mul result
-  469 D1:AAC8 ED B0 -  -  	ldir
-  470 D1:AACA -  -  -  -  
-  471 D1:AACA -  -  -  -  	; Set new head pointer
-  472 D1:AACA 2A 29 B5 D1 	ld hl, (Data+6)								; Load the new pointer
-  473 D1:AACE DD 2A 26 B5 
-              D1 -  -  -  	ld ix, (Data+3)								; Copy head SnakeSegment** into ix
-  474 D1:AAD3 DD 2F 00 -  	ld (ix), hl									; Set the new pointer
-  475 D1:AAD6 -  -  -  -  
-  476 D1:AAD6 -  -  -  -  	; Move the new head in the correct direction
-  477 D1:AAD6 E5 -  -  -  	push hl										; ld ix, hl
-  478 D1:AAD7 DD E1 -  -  	pop ix
-  479 D1:AAD9 11 00 00 00 	ld de, 0
-  480 D1:AADD DD 7E 00 -  	ld a, (ix+SnakeSegment.Facing)
-  481 D1:AAE0 FE 01 -  -  	cp Facing.Up
-  482 D1:AAE2 28 10 -  -  	jr z, MoveSnake.Up
-  483 D1:AAE4 FE 02 -  -  	cp Facing.Down
-  484 D1:AAE6 28 1A -  -  	jr z, MoveSnake.Down
-  485 D1:AAE8 FE 04 -  -  	cp Facing.Left
-  486 D1:AAEA 28 28 -  -  	jr z, MoveSnake.Left
-  487 D1:AAEC FE 08 -  -  	cp Facing.Right
-  488 D1:AAEE 28 32 -  -  	jr z, MoveSnake.Right
-  489 D1:AAF0 C3 C5 A8 D1 	jp ErrorInvalidDirection
-  490 D1:AAF4 -  -  -  -  MoveSnake.Up:
-  491 D1:AAF4 DD 7E 02 -  	ld a, (ix+SnakeSegment.Pos.Y)
-  492 D1:AAF7 0E 00 -  -  	ld c, 00h
-  493 D1:AAF9 B9 -  -  -  	cp c
-  494 D1:AAFA CA CB A8 D1 	jp z, YouDied
-  495 D1:AAFE 06 FF -  -  	ld b, 0FFh
-  496 D1:AB00 18 0C -  -  	jr MoveSnake.Vertical
-  497 D1:AB02 -  -  -  -  MoveSnake.Down:
-  498 D1:AB02 DD 7E 02 -  	ld a, (ix+SnakeSegment.Pos.Y)
-  499 D1:AB05 0E 0E -  -  	ld c, TILEMAP_HEIGHT-1								; -1 because coords are 0-based
-  500 D1:AB07 B9 -  -  -  	cp c
-  501 D1:AB08 CA CB A8 D1 	jp z, YouDied
-  502 D1:AB0C 06 01 -  -  	ld b, 1h
-  503 D1:AB0E -  -  -  -  MoveSnake.Vertical:
-  504 D1:AB0E 80 -  -  -  	add a, b
-  505 D1:AB0F DD 77 02 -  	ld (ix+SnakeSegment.Pos.Y), a
-  506 D1:AB12 18 1E -  -  	jr MoveSnake.DoneMoveHead
-  507 D1:AB14 -  -  -  -  
-  508 D1:AB14 -  -  -  -  MoveSnake.Left:
-  509 D1:AB14 DD 7E 01 -  	ld a, (ix+SnakeSegment.Pos.X)
-  510 D1:AB17 0E 00 -  -  	ld c, 00h
-  511 D1:AB19 B9 -  -  -  	cp c
-  512 D1:AB1A CA CB A8 D1 	jp z, YouDied
-  513 D1:AB1E 06 FF -  -  	ld b, 0FFh
-  514 D1:AB20 18 0C -  -  	jr MoveSnake.Horizontal
-  515 D1:AB22 -  -  -  -  MoveSnake.Right:
-  516 D1:AB22 DD 7E 01 -  	ld a, (ix+SnakeSegment.Pos.X)
-  517 D1:AB25 0E 13 -  -  	ld c, TILEMAP_WIDTH-1								; -1 because coords are 0-based
-  518 D1:AB27 B9 -  -  -  	cp c
-  519 D1:AB28 CA CB A8 D1 	jp z, YouDied
-  520 D1:AB2C 06 01 -  -  	ld b, 1h
-  521 D1:AB2E -  -  -  -  MoveSnake.Horizontal:
-  522 D1:AB2E 80 -  -  -  	add a, b
-  523 D1:AB2F DD 77 01 -  	ld (ix+SnakeSegment.Pos.X), a
-  524 D1:AB32 -  -  -  -  
-  525 D1:AB32 -  -  -  -  MoveSnake.DoneMoveHead:
+  473 D1:AACE ED B0 -  -  	ldir										; Move current head to next segment
+  474 D1:AAD0 -  -  -  -  
+  475 D1:AAD0 -  -  -  -  	; Set old head to be a body tile
+  476 D1:AAD0 DD 36 03 01 	ld (ix+SnakeSegment.Type), Type.Body		; Set the old head to be a body
+  477 D1:AAD4 -  -  -  -  
+  478 D1:AAD4 -  -  -  -  
+  479 D1:AAD4 -  -  -  -  	; Move the new head in the correct direction
+  480 D1:AAD4 DD 2A 78 B5 
+              D1 -  -  -  	ld ix, (Data+6)								; Load the new pointer
+  481 D1:AAD9 11 00 00 00 	ld de, 0
+  482 D1:AADD DD 7E 00 -  	ld a, (ix+SnakeSegment.Facing)
+  483 D1:AAE0 FE 01 -  -  	cp Facing.Up
+  484 D1:AAE2 28 10 -  -  	jr z, MoveSnake.Up
+  485 D1:AAE4 FE 02 -  -  	cp Facing.Down
+  486 D1:AAE6 28 1A -  -  	jr z, MoveSnake.Down
+  487 D1:AAE8 FE 04 -  -  	cp Facing.Left
+  488 D1:AAEA 28 28 -  -  	jr z, MoveSnake.Left
+  489 D1:AAEC FE 08 -  -  	cp Facing.Right
+  490 D1:AAEE 28 32 -  -  	jr z, MoveSnake.Right
+  491 D1:AAF0 C3 C9 A8 D1 	jp ErrorInvalidDirection
+  492 D1:AAF4 -  -  -  -  MoveSnake.Up:
+  493 D1:AAF4 DD 7E 02 -  	ld a, (ix+SnakeSegment.Pos.Y)
+  494 D1:AAF7 0E 00 -  -  	ld c, 00h
+  495 D1:AAF9 B9 -  -  -  	cp c
+  496 D1:AAFA CA CF A8 D1 	jp z, YouDied
+  497 D1:AAFE 06 FF -  -  	ld b, 0FFh
+  498 D1:AB00 18 0C -  -  	jr MoveSnake.Vertical
+  499 D1:AB02 -  -  -  -  MoveSnake.Down:
+  500 D1:AB02 DD 7E 02 -  	ld a, (ix+SnakeSegment.Pos.Y)
+  501 D1:AB05 0E 0E -  -  	ld c, TILEMAP_HEIGHT-1							; -1 because coords are 0-based
+  502 D1:AB07 B9 -  -  -  	cp c
+  503 D1:AB08 CA CF A8 D1 	jp z, YouDied
+  504 D1:AB0C 06 01 -  -  	ld b, 1h
+  505 D1:AB0E -  -  -  -  MoveSnake.Vertical:
+  506 D1:AB0E 80 -  -  -  	add a, b
+  507 D1:AB0F DD 77 02 -  	ld (ix+SnakeSegment.Pos.Y), a
+  508 D1:AB12 18 1E -  -  	jr MoveSnake.DoneMoveHead
+  509 D1:AB14 -  -  -  -  
+  510 D1:AB14 -  -  -  -  MoveSnake.Left:
+  511 D1:AB14 DD 7E 01 -  	ld a, (ix+SnakeSegment.Pos.X)
+  512 D1:AB17 0E 00 -  -  	ld c, 00h
+  513 D1:AB19 B9 -  -  -  	cp c
+  514 D1:AB1A CA CF A8 D1 	jp z, YouDied
+  515 D1:AB1E 06 FF -  -  	ld b, 0FFh
+  516 D1:AB20 18 0C -  -  	jr MoveSnake.Horizontal
+  517 D1:AB22 -  -  -  -  MoveSnake.Right:
+  518 D1:AB22 DD 7E 01 -  	ld a, (ix+SnakeSegment.Pos.X)
+  519 D1:AB25 0E 13 -  -  	ld c, TILEMAP_WIDTH-1							; -1 because coords are 0-based
+  520 D1:AB27 B9 -  -  -  	cp c
+  521 D1:AB28 CA CF A8 D1 	jp z, YouDied
+  522 D1:AB2C 06 01 -  -  	ld b, 1h
+  523 D1:AB2E -  -  -  -  MoveSnake.Horizontal:
+  524 D1:AB2E 80 -  -  -  	add a, b
+  525 D1:AB2F DD 77 01 -  	ld (ix+SnakeSegment.Pos.X), a
   526 D1:AB32 -  -  -  -  
-  527 D1:AB32 FD 2A 29 B5 
-              D1 -  -  -  	ld iy, (Data+6)									; typeof(iy) = SnakeSegment*
-  528 D1:AB37 FD 56 01 -  	ld d, (iy+SnakeSegment.Pos.X)
-  529 D1:AB3A FD 5E 02 -  	ld e, (iy+SnakeSegment.Pos.Y)
-  530 D1:AB3D DD 2A EF AC 
+  527 D1:AB32 -  -  -  -  MoveSnake.DoneMoveHead:
+  528 D1:AB32 -  -  -  -  
+  529 D1:AB32 -  -  -  -  	; Check if there's an apple
+  530 D1:AB32 FD 2A 78 B5 
+              D1 -  -  -  	ld iy, (Data+6)								; typeof(iy) = SnakeSegment*
+  531 D1:AB37 FD 56 01 -  	ld d, (iy+SnakeSegment.Pos.X)
+  532 D1:AB3A FD 5E 02 -  	ld e, (iy+SnakeSegment.Pos.Y)
+  533 D1:AB3D -  -  -  -  
+  534 D1:AB3D 2A 32 AD D1 	ld hl, (ApplePos)
+  535 D1:AB41 37 -  -  -  	scf
+  536 D1:AB42 3F -  -  -  	ccf
+  537 D1:AB43 ED 52 -  -  	sbc hl, de
+  538 D1:AB45 28 20 -  -  	jr z, MoveSnake.Apple
+  539 D1:AB47 -  -  -  -  
+  540 D1:AB47 -  -  -  -  ; No Apple
+  541 D1:AB47 -  -  -  -  	; Shift all of the pointers up by 1
+  542 D1:AB47 21 3E AD D1 	ld hl, Snake
+  543 D1:AB4B 23 -  -  -  	inc hl
+  544 D1:AB4C 23 -  -  -  	inc hl
+  545 D1:AB4D 23 -  -  -  	inc hl
+  546 D1:AB4E 11 3E AD D1 	ld de, Snake
+  547 D1:AB52 ED 4B 72 B5 
+              D1 -  -  -  	ld bc, (Data)								; Get mul result
+  548 D1:AB57 ED B0 -  -  	ldir
+  549 D1:AB59 -  -  -  -  	
+  550 D1:AB59 -  -  -  -  	; Set new head pointer
+  551 D1:AB59 2A 78 B5 D1 	ld hl, (Data+6)								; Load the new pointer
+  552 D1:AB5D DD 2A 75 B5 
+              D1 -  -  -  	ld ix, (Data+3)								; Copy head SnakeSegment** into ix
+  553 D1:AB62 DD 2F 00 -  	ld (ix), hl									; Set the new pointer
+  554 D1:AB65 -  -  -  -  
+  555 D1:AB65 18 15 -  -  	jr MoveSnake.AppleDone
+  556 D1:AB67 -  -  -  -  MoveSnake.Apple:
+  557 D1:AB67 -  -  -  -  	; Set new head pointer
+  558 D1:AB67 2A 78 B5 D1 	ld hl, (Data+6)								; Load the new pointer
+  559 D1:AB6B DD 2A 75 B5 
+              D1 -  -  -  	ld ix, (Data+3)								; Copy head SnakeSegment** into ix
+  560 D1:AB70 DD 2F 03 -  	ld (ix+3), hl								; Set the new pointer
+  561 D1:AB73 -  -  -  -  
+  562 D1:AB73 -  -  -  -  	; Increase length
+  563 D1:AB73 2A 3B AD D1 	ld hl, (SnakeLength)
+  564 D1:AB77 23 -  -  -  	inc hl
+  565 D1:AB78 22 3B AD D1 	ld (SnakeLength), hl
+  566 D1:AB7C -  -  -  -  MoveSnake.AppleDone:
+  567 D1:AB7C -  -  -  -  
+  568 D1:AB7C -  -  -  -  	; Set up to check overlap
+  569 D1:AB7C FD 2A 78 B5 
+              D1 -  -  -  	ld iy, (Data+6)								; typeof(iy) = SnakeSegment*
+  570 D1:AB81 11 00 00 00 	ld de, 0									; de is 24-bit, so make sure the high-order byte is 0
+  571 D1:AB85 FD 56 01 -  	ld d, (iy+SnakeSegment.Pos.X)
+  572 D1:AB88 FD 5E 02 -  	ld e, (iy+SnakeSegment.Pos.Y)
+  573 D1:AB8B DD 2A 3E AD 
               D1 -  -  -  	ld ix, (Snake)
-  531 D1:AB42 -  -  -  -  
-  532 D1:AB42 -  -  -  -  	; Don't count the head
-  533 D1:AB42 FD 2B -  -  	dec iy
-  534 D1:AB44 FD 2B -  -  	dec iy
-  535 D1:AB46 FD 2B -  -  	dec iy
-  536 D1:AB48 FD 2B -  -  	dec iy
-  537 D1:AB4A FD 22 29 B5 
+  574 D1:AB90 -  -  -  -  
+  575 D1:AB90 -  -  -  -  	; Don't count the head
+  576 D1:AB90 FD 2B -  -  	dec iy
+  577 D1:AB92 FD 2B -  -  	dec iy
+  578 D1:AB94 FD 2B -  -  	dec iy
+  579 D1:AB96 FD 2B -  -  	dec iy
+  580 D1:AB98 FD 22 78 B5 
               D1 -  -  -  	ld (Data+6), iy
-  538 D1:AB4F -  -  -  -  MoveSnake.CheckOverlapping:
-  539 D1:AB4F 21 00 00 00 	ld hl, 0
-  540 D1:AB53 -  -  -  -  
-  541 D1:AB53 DD 66 01 -  	ld h, (ix+SnakeSegment.Pos.X)
-  542 D1:AB56 DD 6E 02 -  	ld l, (ix+SnakeSegment.Pos.Y)
-  543 D1:AB59 -  -  -  -   
-  544 D1:AB59 -  -  -  -  
-  545 D1:AB59 37 -  -  -  	scf												; Reset carry
-  546 D1:AB5A 3F -  -  -  	ccf
-  547 D1:AB5B ED 52 -  -  	sbc hl, de
-  548 D1:AB5D CA CB A8 D1 	jp z, YouDied
-  549 D1:AB61 DD 23 -  -  	inc ix											; Move to next segment pointer
-  550 D1:AB63 DD 23 -  -  	inc ix
-  551 D1:AB65 DD 23 -  -  	inc ix
-  552 D1:AB67 DD 23 -  -  	inc ix
-  553 D1:AB69 -  -  -  -  
-  554 D1:AB69 DD E5 -  -  	push ix											; ld bc, ix
-  555 D1:AB6B C1 -  -  -  	pop bc
-  556 D1:AB6C 2A 29 B5 D1 	ld hl, (Data+6)									; Load the pointer to the segment before the head
-  557 D1:AB70 37 -  -  -  	scf												; Reset carry
-  558 D1:AB71 3F -  -  -  	ccf
-  559 D1:AB72 ED 42 -  -  	sbc hl, bc										; cp hl, bc
-  560 D1:AB74 20 D9 -  -  	jr nz, MoveSnake.CheckOverlapping
-  561 D1:AB76 -  -  -  -  
-  562 D1:AB76 -  -  -  -  
-  563 D1:AB76 -  -  -  -  	; Set the new tail to be a tail
-  564 D1:AB76 DD 2A EF AC 
+  581 D1:AB9D -  -  -  -  MoveSnake.CheckOverlapping:
+  582 D1:AB9D 21 00 00 00 	ld hl, 0
+  583 D1:ABA1 -  -  -  -  
+  584 D1:ABA1 DD 66 01 -  	ld h, (ix+SnakeSegment.Pos.X)
+  585 D1:ABA4 DD 6E 02 -  	ld l, (ix+SnakeSegment.Pos.Y)
+  586 D1:ABA7 -  -  -  -   
+  587 D1:ABA7 -  -  -  -  
+  588 D1:ABA7 37 -  -  -  	scf											; Reset carry
+  589 D1:ABA8 3F -  -  -  	ccf
+  590 D1:ABA9 ED 52 -  -  	sbc hl, de
+  591 D1:ABAB CA CF A8 D1 	jp z, YouDied								; Check if head overlapping with segment
+  592 D1:ABAF DD 23 -  -  	inc ix										; Move to next segment pointer
+  593 D1:ABB1 DD 23 -  -  	inc ix
+  594 D1:ABB3 DD 23 -  -  	inc ix
+  595 D1:ABB5 DD 23 -  -  	inc ix
+  596 D1:ABB7 -  -  -  -  
+  597 D1:ABB7 DD E5 -  -  	push ix										; ld bc, ix
+  598 D1:ABB9 C1 -  -  -  	pop bc
+  599 D1:ABBA 2A 78 B5 D1 	ld hl, (Data+6)								; Load the pointer to the segment before the head
+  600 D1:ABBE 37 -  -  -  	scf											; Reset carry
+  601 D1:ABBF 3F -  -  -  	ccf
+  602 D1:ABC0 ED 42 -  -  	sbc hl, bc									; cp hl, bc
+  603 D1:ABC2 20 D9 -  -  	jr nz, MoveSnake.CheckOverlapping			; If current segment is not the last body segment, loop again
+  604 D1:ABC4 -  -  -  -  
+  605 D1:ABC4 -  -  -  -  
+  606 D1:ABC4 -  -  -  -  	; Set the new tail to be a tail
+  607 D1:ABC4 DD 2A 3E AD 
               D1 -  -  -  	ld ix, (Snake)
-  565 D1:AB7B DD 36 03 02 	ld (ix+SnakeSegment.Type), Type.Tail
-  566 D1:AB7F -  -  -  -  
-  567 D1:AB7F -  -  -  -  
-  568 D1:AB7F C9 -  -  -  	ret
-  569 D1:AB80 -  -  -  -  
-  570 D1:AB80 -  -  -  -  
-  571 D1:AB80 -  -  -  -  
-  572 D1:AB80 -  -  -  -  ; TODO: Implement this function
-  573 D1:AB80 -  -  -  -  ;---------------------------------------------------------------------------------------
-  574 D1:AB80 -  -  -  -  ; **Resets the Snake Segments so that they are a the beginning of the reserved memory**
-  575 D1:AB80 -  -  -  -  ;---------------------------------------------------------------------------------------
-  576 D1:AB80 -  -  -  -  ResetSegments:
-  577 D1:AB80 -  -  -  -  ret
-  578 D1:AB80 -  -  -  -  
-  579 D1:AB80 -  -  -  -  ;---------------------------------------------------
-  580 D1:AB80 -  -  -  -  ; **Moves a given tile into the given render buffer**
-  581 D1:AB80 -  -  -  -  ; Destroys: de, bc
-  582 D1:AB80 -  -  -  -  ; Params:
-  583 D1:AB80 -  -  -  -  ; - HL: Pointer to Tile
-  584 D1:AB80 -  -  -  -  ; - IXL: x pos to place the top left of the tile at
-  585 D1:AB80 -  -  -  -  ; - A: y pos to place the top left of the tile at
-  586 D1:AB80 -  -  -  -  ;---------------------------------------------------
-  587 D1:AB80 -  -  -  -  SetTile:
-  588 D1:AB80 11 00 00 D4 	ld de, LCD_BUFFER
-  589 D1:AB84 -  -  -  -  
-  590 D1:AB84 E5 -  -  -  	push hl												; Save hl
-  591 D1:AB85 DD E5 -  -  	push ix
-  592 D1:AB87 -  -  -  -  
-  593 D1:AB87 01 00 28 00 	ld bc, LCD_WIDTH*TILE_HEIGHT*BYTES_PER_PIXEL
-  594 D1:AB8B D5 -  -  -  	push de
-  595 D1:AB8C CD BD AB D1 	call mul											; yPos * TILE_HEIGHT * LCD_WIDTH
-  596 D1:AB90 D1 -  -  -  	pop de
-  597 D1:AB91 -  -  -  -  
-  598 D1:AB91 19 -  -  -  	add hl, de											; Add y offset to *RENDER_BUFFER
-  599 D1:AB92 EB -  -  -  	ex de, hl
-  600 D1:AB93 -  -  -  -  	
-  601 D1:AB93 DD E1 -  -  	pop ix
-  602 D1:AB95 DD 7D -  -  	ld a, ixl
-  603 D1:AB97 01 20 00 00 	ld bc, TILE_WIDTH*BYTES_PER_PIXEL
-  604 D1:AB9B D5 -  -  -  	push de
-  605 D1:AB9C CD BD AB D1 	call mul											; xPos * TILE_WIDTH
-  606 D1:ABA0 D1 -  -  -  	pop de
-  607 D1:ABA1 -  -  -  -  
-  608 D1:ABA1 19 -  -  -  	add hl, de											; Add x offset to *RENDER_BUFFER
-  609 D1:ABA2 EB -  -  -  	ex de, hl
-  610 D1:ABA3 -  -  -  -  
-  611 D1:ABA3 E1 -  -  -  	pop hl												; Restore hl
-  612 D1:ABA4 -  -  -  -  
-  613 D1:ABA4 3E 10 -  -  	ld a, TILE_HEIGHT
-  614 D1:ABA6 -  -  -  -  
-  615 D1:ABA6 01 20 00 00 	ld bc, TILE_WIDTH*BYTES_PER_PIXEL
-  616 D1:ABAA C5 -  -  -  	push bc
-  617 D1:ABAB -  -  -  -  SetTile.loop:
-  618 D1:ABAB C1 -  -  -  	pop bc
-  619 D1:ABAC C5 -  -  -  	push bc
-  620 D1:ABAD -  -  -  -  	; Copy memory
-  621 D1:ABAD ED B0 -  -  	ldir												; Copy 1 row of data from tile buffer to RENDER_BUFFER
-  622 D1:ABAF -  -  -  -  
-  623 D1:ABAF -  -  -  -  	; Move down 1 line to the begnning of the Tile
-  624 D1:ABAF E5 -  -  -  	push hl												; Start de += (LCD_WIDTH_SUB_TILE_WIDTH - 1)
-  625 D1:ABB0 21 60 02 00 	ld hl, (LCD_WIDTH-TILE_WIDTH)*BYTES_PER_PIXEL		; -1 because the buffers are 0-based
-  626 D1:ABB4 19 -  -  -  	add hl, de
-  627 D1:ABB5 EB -  -  -  	ex de, hl
-  628 D1:ABB6 E1 -  -  -  	pop hl												; End de += (LCD_WIDTH_SUB_TILE_WIDTH - 1)
-  629 D1:ABB7 -  -  -  -  
-  630 D1:ABB7 3D -  -  -  	dec a
-  631 D1:ABB8 B7 -  -  -  	or a
-  632 D1:ABB9 20 F0 -  -  	jr nz, SetTile.loop
-  633 D1:ABBB C1 -  -  -  	pop bc
-  634 D1:ABBC C9 -  -  -  	ret
-  635 D1:ABBD -  -  -  -  
-  636 D1:ABBD -  -  -  -  
-  637 D1:ABBD -  -  -  -  ;--------------------------------------------------------------
-  638 D1:ABBD -  -  -  -  ; **HL = A * BC**
-  639 D1:ABBD -  -  -  -  ; Destroys: de, ix
-  640 D1:ABBD -  -  -  -  ; Params:
-  641 D1:ABBD -  -  -  -  ;	- A: first number - 8-bit
-  642 D1:ABBD -  -  -  -  ;	- BC: second number - 16-bit
-  643 D1:ABBD -  -  -  -  ; Output:
-  644 D1:ABBD -  -  -  -  ;	- HL: result - 24-bit
-  645 D1:ABBD -  -  -  -  ;--------------------------------------------------------------
-  646 D1:ABBD -  -  -  -  mul:
-  647 D1:ABBD 60 -  -  -  	ld h, b
-  648 D1:ABBE 6F -  -  -  	ld l, a
-  649 D1:ABBF CD 70 04 02 	call _HtimesL
-  650 D1:ABC3 -  -  -  -  
-  651 D1:ABC3 22 23 B5 D1 	ld (Data), hl
-  652 D1:ABC7 DD 21 23 B5 
+  608 D1:ABC9 DD 36 03 02 	ld (ix+SnakeSegment.Type), Type.Tail
+  609 D1:ABCD -  -  -  -  
+  610 D1:ABCD -  -  -  -  
+  611 D1:ABCD C9 -  -  -  	ret
+  612 D1:ABCE -  -  -  -  
+  613 D1:ABCE -  -  -  -  
+  614 D1:ABCE -  -  -  -  
+  615 D1:ABCE -  -  -  -  ; TODO: Implement this function
+  616 D1:ABCE -  -  -  -  ;---------------------------------------------------------------------------------------
+  617 D1:ABCE -  -  -  -  ; **Resets the Snake Segments so that they are a the beginning of the reserved memory**
+  618 D1:ABCE -  -  -  -  ;---------------------------------------------------------------------------------------
+  619 D1:ABCE -  -  -  -  ResetSegments:
+  620 D1:ABCE -  -  -  -  ret
+  621 D1:ABCE -  -  -  -  
+  622 D1:ABCE -  -  -  -  ;---------------------------------------------------
+  623 D1:ABCE -  -  -  -  ; **Moves a given tile into the given render buffer**
+  624 D1:ABCE -  -  -  -  ; Destroys: de, bc
+  625 D1:ABCE -  -  -  -  ; Params:
+  626 D1:ABCE -  -  -  -  ; - HL: Pointer to Tile
+  627 D1:ABCE -  -  -  -  ; - IXL: x pos to place the top left of the tile at
+  628 D1:ABCE -  -  -  -  ; - A: y pos to place the top left of the tile at
+  629 D1:ABCE -  -  -  -  ;---------------------------------------------------
+  630 D1:ABCE -  -  -  -  SetTile:
+  631 D1:ABCE 11 00 00 D4 	ld de, LCD_BUFFER
+  632 D1:ABD2 -  -  -  -  
+  633 D1:ABD2 E5 -  -  -  	push hl												; Save hl
+  634 D1:ABD3 DD E5 -  -  	push ix
+  635 D1:ABD5 -  -  -  -  
+  636 D1:ABD5 01 00 28 00 	ld bc, LCD_WIDTH*TILE_HEIGHT*BYTES_PER_PIXEL
+  637 D1:ABD9 D5 -  -  -  	push de
+  638 D1:ABDA CD 0B AC D1 	call mul											; yPos * TILE_HEIGHT * LCD_WIDTH
+  639 D1:ABDE D1 -  -  -  	pop de
+  640 D1:ABDF -  -  -  -  
+  641 D1:ABDF 19 -  -  -  	add hl, de											; Add y offset to *RENDER_BUFFER
+  642 D1:ABE0 EB -  -  -  	ex de, hl
+  643 D1:ABE1 -  -  -  -  	
+  644 D1:ABE1 DD E1 -  -  	pop ix
+  645 D1:ABE3 DD 7D -  -  	ld a, ixl
+  646 D1:ABE5 01 20 00 00 	ld bc, TILE_WIDTH*BYTES_PER_PIXEL
+  647 D1:ABE9 D5 -  -  -  	push de
+  648 D1:ABEA CD 0B AC D1 	call mul											; xPos * TILE_WIDTH
+  649 D1:ABEE D1 -  -  -  	pop de
+  650 D1:ABEF -  -  -  -  
+  651 D1:ABEF 19 -  -  -  	add hl, de											; Add x offset to *RENDER_BUFFER
+  652 D1:ABF0 EB -  -  -  	ex de, hl
+  653 D1:ABF1 -  -  -  -  
+  654 D1:ABF1 E1 -  -  -  	pop hl												; Restore hl
+  655 D1:ABF2 -  -  -  -  
+  656 D1:ABF2 3E 10 -  -  	ld a, TILE_HEIGHT
+  657 D1:ABF4 -  -  -  -  
+  658 D1:ABF4 01 20 00 00 	ld bc, TILE_WIDTH*BYTES_PER_PIXEL
+  659 D1:ABF8 C5 -  -  -  	push bc
+  660 D1:ABF9 -  -  -  -  SetTile.loop:
+  661 D1:ABF9 C1 -  -  -  	pop bc
+  662 D1:ABFA C5 -  -  -  	push bc
+  663 D1:ABFB -  -  -  -  	; Copy memory
+  664 D1:ABFB ED B0 -  -  	ldir												; Copy 1 row of data from tile buffer to RENDER_BUFFER
+  665 D1:ABFD -  -  -  -  
+  666 D1:ABFD -  -  -  -  	; Move down 1 line to the begnning of the Tile
+  667 D1:ABFD E5 -  -  -  	push hl												; Start de += (LCD_WIDTH_SUB_TILE_WIDTH - 1)
+  668 D1:ABFE 21 60 02 00 	ld hl, (LCD_WIDTH-TILE_WIDTH)*BYTES_PER_PIXEL		; -1 because the buffers are 0-based
+  669 D1:AC02 19 -  -  -  	add hl, de
+  670 D1:AC03 EB -  -  -  	ex de, hl
+  671 D1:AC04 E1 -  -  -  	pop hl												; End de += (LCD_WIDTH_SUB_TILE_WIDTH - 1)
+  672 D1:AC05 -  -  -  -  
+  673 D1:AC05 3D -  -  -  	dec a
+  674 D1:AC06 B7 -  -  -  	or a
+  675 D1:AC07 20 F0 -  -  	jr nz, SetTile.loop
+  676 D1:AC09 C1 -  -  -  	pop bc
+  677 D1:AC0A C9 -  -  -  	ret
+  678 D1:AC0B -  -  -  -  
+  679 D1:AC0B -  -  -  -  
+  680 D1:AC0B -  -  -  -  ;--------------------------------------------------------------
+  681 D1:AC0B -  -  -  -  ; **HL = A * BC**
+  682 D1:AC0B -  -  -  -  ; Destroys: de, ix
+  683 D1:AC0B -  -  -  -  ; Params:
+  684 D1:AC0B -  -  -  -  ;	- A: first number - 8-bit
+  685 D1:AC0B -  -  -  -  ;	- BC: second number - 16-bit
+  686 D1:AC0B -  -  -  -  ; Output:
+  687 D1:AC0B -  -  -  -  ;	- HL: result - 24-bit
+  688 D1:AC0B -  -  -  -  ;--------------------------------------------------------------
+  689 D1:AC0B -  -  -  -  mul:
+  690 D1:AC0B 60 -  -  -  	ld h, b
+  691 D1:AC0C 6F -  -  -  	ld l, a
+  692 D1:AC0D CD 70 04 02 	call _HtimesL
+  693 D1:AC11 -  -  -  -  
+  694 D1:AC11 22 72 B5 D1 	ld (Data), hl
+  695 D1:AC15 DD 21 72 B5 
               D1 -  -  -  	ld ix, Data
-  653 D1:ABCC -  -  -  -  	
-  654 D1:ABCC -  -  -  -  	; de <<= 8
-  655 D1:ABCC DD CB 00 26 	sla (ix)
-  656 D1:ABD0 DD CB 01 16 	rl (ix+1)
-  657 D1:ABD4 DD CB 02 16 	rl (ix+2)
-  658 D1:ABD8 -  -  -  -  
-  659 D1:ABD8 DD CB 00 26 	sla (ix)
-  660 D1:ABDC DD CB 01 16 	rl (ix+1)
-  661 D1:ABE0 DD CB 02 16 	rl (ix+2)
-  662 D1:ABE4 -  -  -  -  	
-  663 D1:ABE4 DD CB 00 26 	sla (ix)
-  664 D1:ABE8 DD CB 01 16 	rl (ix+1)
-  665 D1:ABEC DD CB 02 16 	rl (ix+2)
-  666 D1:ABF0 -  -  -  -  	
-  667 D1:ABF0 DD CB 00 26 	sla (ix)
-  668 D1:ABF4 DD CB 01 16 	rl (ix+1)
-  669 D1:ABF8 DD CB 02 16 	rl (ix+2)
-  670 D1:ABFC -  -  -  -  	
-  671 D1:ABFC DD CB 00 26 	sla (ix)
-  672 D1:AC00 DD CB 01 16 	rl (ix+1)
-  673 D1:AC04 DD CB 02 16 	rl (ix+2)
-  674 D1:AC08 -  -  -  -  	
-  675 D1:AC08 DD CB 00 26 	sla (ix)
-  676 D1:AC0C DD CB 01 16 	rl (ix+1)
-  677 D1:AC10 DD CB 02 16 	rl (ix+2)
-  678 D1:AC14 -  -  -  -  	
-  679 D1:AC14 DD CB 00 26 	sla (ix)
-  680 D1:AC18 DD CB 01 16 	rl (ix+1)
-  681 D1:AC1C DD CB 02 16 	rl (ix+2)
-  682 D1:AC20 -  -  -  -  	
-  683 D1:AC20 DD CB 00 26 	sla (ix)
-  684 D1:AC24 DD CB 01 16 	rl (ix+1)
-  685 D1:AC28 DD CB 02 16 	rl (ix+2)
-  686 D1:AC2C DD 17 00 -  	ld de, (ix)
-  687 D1:AC2F D5 -  -  -  	push de
-  688 D1:AC30 -  -  -  -  
-  689 D1:AC30 61 -  -  -  	ld h, c
-  690 D1:AC31 6F -  -  -  	ld l, a
-  691 D1:AC32 CD 70 04 02 	call _HtimesL
-  692 D1:AC36 -  -  -  -  
-  693 D1:AC36 D1 -  -  -  	pop de
-  694 D1:AC37 19 -  -  -  	add hl, de
-  695 D1:AC38 C9 -  -  -  	ret
-  696 D1:AC39 -  -  -  -  
-  697 D1:AC39 -  -  -  -  
-  698 D1:AC39 -  -  -  -  
-  699 D1:AC39 -  -  -  -  
-  700 D1:AC39 -  -  -  -  
-  701 D1:AC39 -  -  -  -  
-  702 D1:AC39 -  -  -  -  
-  703 D1:AC39 -  -  -  -  
-  704 D1:AC39 -  -  -  -  ;--------------
-  705 D1:AC39 -  -  -  -  ; Vars
-  706 D1:AC39 -  -  -  -  ;--------------
-  707 D1:AC39 -  -  -  -  
-  708 D1:AC39 -  -  -  -  ExitPrgm:
-  709 D1:AC39 00 -  -  -  	.db 0
-  710 D1:AC3A -  -  -  -  
-  711 D1:AC3A -  -  -  -  
-  712 D1:AC3A -  -  -  -  
-  713 D1:AC3A -  -  -  -  ; Error Messages
-  714 D1:AC3A -  -  -  -  ErrorAppVarArchivedStr:
-  715 D1:AC3A 45 52 52 4F 
+  696 D1:AC1A -  -  -  -  	
+  697 D1:AC1A -  -  -  -  	; de <<= 8
+  698 D1:AC1A DD CB 00 26 	sla (ix)
+  699 D1:AC1E DD CB 01 16 	rl (ix+1)
+  700 D1:AC22 DD CB 02 16 	rl (ix+2)
+  701 D1:AC26 -  -  -  -  
+  702 D1:AC26 DD CB 00 26 	sla (ix)
+  703 D1:AC2A DD CB 01 16 	rl (ix+1)
+  704 D1:AC2E DD CB 02 16 	rl (ix+2)
+  705 D1:AC32 -  -  -  -  	
+  706 D1:AC32 DD CB 00 26 	sla (ix)
+  707 D1:AC36 DD CB 01 16 	rl (ix+1)
+  708 D1:AC3A DD CB 02 16 	rl (ix+2)
+  709 D1:AC3E -  -  -  -  	
+  710 D1:AC3E DD CB 00 26 	sla (ix)
+  711 D1:AC42 DD CB 01 16 	rl (ix+1)
+  712 D1:AC46 DD CB 02 16 	rl (ix+2)
+  713 D1:AC4A -  -  -  -  	
+  714 D1:AC4A DD CB 00 26 	sla (ix)
+  715 D1:AC4E DD CB 01 16 	rl (ix+1)
+  716 D1:AC52 DD CB 02 16 	rl (ix+2)
+  717 D1:AC56 -  -  -  -  	
+  718 D1:AC56 DD CB 00 26 	sla (ix)
+  719 D1:AC5A DD CB 01 16 	rl (ix+1)
+  720 D1:AC5E DD CB 02 16 	rl (ix+2)
+  721 D1:AC62 -  -  -  -  	
+  722 D1:AC62 DD CB 00 26 	sla (ix)
+  723 D1:AC66 DD CB 01 16 	rl (ix+1)
+  724 D1:AC6A DD CB 02 16 	rl (ix+2)
+  725 D1:AC6E -  -  -  -  	
+  726 D1:AC6E DD CB 00 26 	sla (ix)
+  727 D1:AC72 DD CB 01 16 	rl (ix+1)
+  728 D1:AC76 DD CB 02 16 	rl (ix+2)
+  729 D1:AC7A DD 17 00 -  	ld de, (ix)
+  730 D1:AC7D D5 -  -  -  	push de
+  731 D1:AC7E -  -  -  -  
+  732 D1:AC7E 61 -  -  -  	ld h, c
+  733 D1:AC7F 6F -  -  -  	ld l, a
+  734 D1:AC80 CD 70 04 02 	call _HtimesL
+  735 D1:AC84 -  -  -  -  
+  736 D1:AC84 D1 -  -  -  	pop de
+  737 D1:AC85 19 -  -  -  	add hl, de
+  738 D1:AC86 C9 -  -  -  	ret
+  739 D1:AC87 -  -  -  -  
+  740 D1:AC87 -  -  -  -  
+  741 D1:AC87 -  -  -  -  
+  742 D1:AC87 -  -  -  -  
+  743 D1:AC87 -  -  -  -  
+  744 D1:AC87 -  -  -  -  
+  745 D1:AC87 -  -  -  -  
+  746 D1:AC87 -  -  -  -  
+  747 D1:AC87 -  -  -  -  ;--------------
+  748 D1:AC87 -  -  -  -  ; Vars
+  749 D1:AC87 -  -  -  -  ;--------------
+  750 D1:AC87 -  -  -  -  
+  751 D1:AC87 -  -  -  -  ExitPrgm:
+  752 D1:AC87 00 -  -  -  	.db 0
+  753 D1:AC88 -  -  -  -  
+  754 D1:AC88 -  -  -  -  
+  755 D1:AC88 -  -  -  -  
+  756 D1:AC88 -  -  -  -  ; Error Messages
+  757 D1:AC88 -  -  -  -  ErrorAppVarArchivedStr:
+  758 D1:AC88 45 52 52 4F 
               52 2C 20 41 
               70 70 56 61 
               72 20 69 73 
@@ -752,15 +798,15 @@ Listing for file "src\Snake.ez80"
               74 20 69 6E 
               74 6F 20 52 
               41 4D 00 -  	.db "ERROR, AppVar is archived, please move it into RAM", 0
-  716 D1:AC6D -  -  -  -  ErrorAppVarNotFoundStr:
-  717 D1:AC6D 45 52 52 4F 
+  759 D1:ACBB -  -  -  -  ErrorAppVarNotFoundStr:
+  760 D1:ACBB 45 52 52 4F 
               52 2C 20 41 
               70 70 56 61 
               72 20 6E 6F 
               74 20 66 6F 
               75 6E 64 00 	.db "ERROR, AppVar not found", 0
-  718 D1:AC85 -  -  -  -  ErrorInvalidDirectionStr:
-  719 D1:AC85 45 52 52 4F 
+  761 D1:ACD3 -  -  -  -  ErrorInvalidDirectionStr:
+  762 D1:ACD3 45 52 52 4F 
               52 2C 20 54 
               68 65 20 63 
               75 72 72 65 
@@ -778,55 +824,56 @@ Listing for file "src\Snake.ez80"
               61 6C 69 64 
               20 76 61 6C 
               75 65 00 -  	.db "ERROR, The current movement direction has been set to an invalid value", 0
-  720 D1:ACCC -  -  -  -  YouDiedStr:
-  721 D1:ACCC 59 6F 75 20 
+  763 D1:AD1A -  -  -  -  YouDiedStr:
+  764 D1:AD1A 59 6F 75 20 
               44 69 65 64 
               00 -  -  -  	.db "You Died", 0
-  722 D1:ACD5 -  -  -  -  
-  723 D1:ACD5 -  -  -  -  
-  724 D1:ACD5 -  -  -  -  
-  725 D1:ACD5 -  -  -  -  ; AppVar
-  726 D1:ACD5 -  -  -  -  
-  727 D1:ACD5 -  -  -  -  AppVarName:
-  728 D1:ACD5 -  -  -  -  	; "VARNAME", 0 (0-padded to 8 bytes), 15h
-  729 D1:ACD5 15 53 4E 4B 
+  765 D1:AD23 -  -  -  -  
+  766 D1:AD23 -  -  -  -  
+  767 D1:AD23 -  -  -  -  
+  768 D1:AD23 -  -  -  -  ; AppVar
+  769 D1:AD23 -  -  -  -  
+  770 D1:AD23 -  -  -  -  AppVarName:
+  771 D1:AD23 -  -  -  -  	; "VARNAME", 0 (0-padded to 8 bytes), 15h
+  772 D1:AD23 15 53 4E 4B 
               53 4B 4E 00 
               00 00 00 -  	.db AppVarObj, "SNKSKN", 0, 0, 0, 0
-  730 D1:ACE0 -  -  -  -  AppVarPointer:
-  731 D1:ACE0 00 00 00 -  	.fill 3, 0
-  732 D1:ACE3 -  -  -  -  
-  733 D1:ACE3 -  -  -  -  
-  734 D1:ACE3 -  -  -  -  
-  735 D1:ACE3 -  -  -  -  ; Timer
-  736 D1:ACE3 -  -  -  -  
-  737 D1:ACE3 -  -  -  -  PreviousTime:
-  738 D1:ACE3 FF -  -  -  	.db 0FFh
-  739 D1:ACE4 -  -  -  -  
-  740 D1:ACE4 -  -  -  -  
-  741 D1:ACE4 -  -  -  -  ApplePos:
-  742 D1:ACE4 00 -  -  -  	.db 0	; X
-  743 D1:ACE5 00 -  -  -  	.db 0	; Y
-  744 D1:ACE6 -  -  -  -  ; Snake
-  745 D1:ACE6 -  -  -  -  SnakeFacing:
-  746 D1:ACE6 08 00 00 -  	.dl Facing.Right
-  747 D1:ACE9 -  -  -  -  SnakeFacingPrevious:
-  748 D1:ACE9 08 00 00 -  	.dl Facing.Right
-  749 D1:ACEC -  -  -  -  SnakeLength:
-  750 D1:ACEC -  -  -  -  	; Little Endian
-  751 D1:ACEC 09 00 00 -  	.db 9, 0, 0
-  752 D1:ACEF -  -  -  -  Snake:
-  753 D1:ACEF -  -  -  -  	; db - 1 byte, dw - 2 bytes, dl - 3 bytes
-  754 D1:ACEF 73 B0 D1 -  	.dl Segments+(0*SnakeSegment_Size)
-  755 D1:ACF2 77 B0 D1 -  	.dl Segments+(1*SnakeSegment_Size)
-  756 D1:ACF5 7B B0 D1 -  	.dl Segments+(2*SnakeSegment_Size)
-  757 D1:ACF8 7F B0 D1 -  	.dl Segments+(3*SnakeSegment_Size)
-  758 D1:ACFB 83 B0 D1 -  	.dl Segments+(4*SnakeSegment_Size)
-  759 D1:ACFE 87 B0 D1 -  	.dl Segments+(5*SnakeSegment_Size)
-  760 D1:AD01 8B B0 D1 -  	.dl Segments+(6*SnakeSegment_Size)
-  761 D1:AD04 8F B0 D1 -  	.dl Segments+(7*SnakeSegment_Size)
-  762 D1:AD07 93 B0 D1 -  	.dl Segments+(8*SnakeSegment_Size)
-  763 D1:AD0A -  -  -  -  
-  764 D1:AD0A 00 00 00 00 
+  773 D1:AD2E -  -  -  -  AppVarPointer:
+  774 D1:AD2E 00 00 00 -  	.fill 3, 0
+  775 D1:AD31 -  -  -  -  
+  776 D1:AD31 -  -  -  -  
+  777 D1:AD31 -  -  -  -  
+  778 D1:AD31 -  -  -  -  ; Timer
+  779 D1:AD31 -  -  -  -  
+  780 D1:AD31 -  -  -  -  PreviousTime:
+  781 D1:AD31 FF -  -  -  	.db 0FFh
+  782 D1:AD32 -  -  -  -  
+  783 D1:AD32 -  -  -  -  
+  784 D1:AD32 -  -  -  -  ApplePos:
+  785 D1:AD32 00 -  -  -  	.db 0	; X
+  786 D1:AD33 00 -  -  -  	.db 0	; Y
+  787 D1:AD34 00 -  -  -  	.db 0	; Padding
+  788 D1:AD35 -  -  -  -  ; Snake
+  789 D1:AD35 -  -  -  -  SnakeFacing:
+  790 D1:AD35 08 00 00 -  	.dl Facing.Right
+  791 D1:AD38 -  -  -  -  SnakeFacingPrevious:
+  792 D1:AD38 08 00 00 -  	.dl Facing.Right
+  793 D1:AD3B -  -  -  -  SnakeLength:
+  794 D1:AD3B -  -  -  -  	; Little Endian
+  795 D1:AD3B 09 00 00 -  	.db 9, 0, 0
+  796 D1:AD3E -  -  -  -  Snake:
+  797 D1:AD3E -  -  -  -  	; db - 1 byte, dw - 2 bytes, dl - 3 bytes
+  798 D1:AD3E C2 B0 D1 -  	.dl Segments+(0*SnakeSegment_Size)
+  799 D1:AD41 C6 B0 D1 -  	.dl Segments+(1*SnakeSegment_Size)
+  800 D1:AD44 CA B0 D1 -  	.dl Segments+(2*SnakeSegment_Size)
+  801 D1:AD47 CE B0 D1 -  	.dl Segments+(3*SnakeSegment_Size)
+  802 D1:AD4A D2 B0 D1 -  	.dl Segments+(4*SnakeSegment_Size)
+  803 D1:AD4D D6 B0 D1 -  	.dl Segments+(5*SnakeSegment_Size)
+  804 D1:AD50 DA B0 D1 -  	.dl Segments+(6*SnakeSegment_Size)
+  805 D1:AD53 DE B0 D1 -  	.dl Segments+(7*SnakeSegment_Size)
+  806 D1:AD56 E2 B0 D1 -  	.dl Segments+(8*SnakeSegment_Size)
+  807 D1:AD59 -  -  -  -  
+  808 D1:AD59 00 00 00 00 
               00 00 00 00 
               00 00 00 00 
               00 00 00 00 
@@ -1045,37 +1092,37 @@ Listing for file "src\Snake.ez80"
               00 00 00 00 
               00 00 00 00 
               00 -  -  -  	.fill 3*(TILEMAP_AREA - 9), 0							; *SnakeSegment[LCD_AREA]
-  765 D1:B073 -  -  -  -  Segments:
-  766 D1:B073 -  -  -  -  	; Facing, Pos.X, Pos.Y, Type
-  767 D1:B073 08 00 0E 02 	.db Facing.Right, 0, TILEMAP_HEIGHT-1, Type.Tail
-  768 D1:B077 08 01 0E 01 	.db Facing.Right, 1, TILEMAP_HEIGHT-1, Type.Body
-  769 D1:B07B 08 02 0E 01 	.db Facing.Right, 2, TILEMAP_HEIGHT-1, Type.Body
-  770 D1:B07F 08 03 0E 01 	.db Facing.Right, 3, TILEMAP_HEIGHT-1, Type.Body
-  771 D1:B083 08 04 0E 01 	.db Facing.Right, 4, TILEMAP_HEIGHT-1, Type.Body
-  772 D1:B087 08 05 0E 01 	.db Facing.Right, 5, TILEMAP_HEIGHT-1, Type.Body
-  773 D1:B08B 08 06 0E 01 	.db Facing.Right, 6, TILEMAP_HEIGHT-1, Type.Body
-  774 D1:B08F 08 07 0E 01 	.db Facing.Right, 7, TILEMAP_HEIGHT-1, Type.Body
-  775 D1:B093 -  -  -  -  
-  776 D1:B093 -  -  -  -  	; Snake Render Check
-  777 D1:B093 -  -  -  -  	; .db Facing.Up, 8, TILEMAP_HEIGHT-1, Type.Body
-  778 D1:B093 -  -  -  -  	; .db Facing.Up, 8, TILEMAP_HEIGHT-2, Type.Body
-  779 D1:B093 -  -  -  -  	; .db Facing.Up, 8, TILEMAP_HEIGHT-3, Type.Body
-  780 D1:B093 -  -  -  -  	; .db Facing.Left, 8, TILEMAP_HEIGHT-4, Type.Body
-  781 D1:B093 -  -  -  -  	
-  782 D1:B093 -  -  -  -  	; .db Facing.Left, 7, TILEMAP_HEIGHT-4, Type.Body
-  783 D1:B093 -  -  -  -  	; .db Facing.Left, 6, TILEMAP_HEIGHT-4, Type.Body
-  784 D1:B093 -  -  -  -  	; .db Facing.Down, 5, TILEMAP_HEIGHT-4, Type.Body
-  785 D1:B093 -  -  -  -  
-  786 D1:B093 -  -  -  -  	; .db Facing.Down, 5, TILEMAP_HEIGHT-3, Type.Body
-  787 D1:B093 -  -  -  -  	; .db Facing.Right, 5, TILEMAP_HEIGHT-2, Type.Body
-  788 D1:B093 -  -  -  -  
-  789 D1:B093 -  -  -  -  	; .db Facing.Up, 6, TILEMAP_HEIGHT-2, Type.Body
-  790 D1:B093 -  -  -  -  	; .db Facing.Right, 6, TILEMAP_HEIGHT-3, Type.Body
-  791 D1:B093 -  -  -  -  	; .db Facing.Down, 7, TILEMAP_HEIGHT-3, Type.Body
-  792 D1:B093 -  -  -  -  
-  793 D1:B093 -  -  -  -  
-  794 D1:B093 08 08 0E 00 	.db Facing.Right, 8, TILEMAP_HEIGHT-1, Type.Head
-  795 D1:B097 00 00 00 00 
+  809 D1:B0C2 -  -  -  -  Segments:
+  810 D1:B0C2 -  -  -  -  	; Facing, Pos.X, Pos.Y, Type
+  811 D1:B0C2 08 00 0E 02 	.db Facing.Right, 0, TILEMAP_HEIGHT-1, Type.Tail
+  812 D1:B0C6 08 01 0E 01 	.db Facing.Right, 1, TILEMAP_HEIGHT-1, Type.Body
+  813 D1:B0CA 08 02 0E 01 	.db Facing.Right, 2, TILEMAP_HEIGHT-1, Type.Body
+  814 D1:B0CE 08 03 0E 01 	.db Facing.Right, 3, TILEMAP_HEIGHT-1, Type.Body
+  815 D1:B0D2 08 04 0E 01 	.db Facing.Right, 4, TILEMAP_HEIGHT-1, Type.Body
+  816 D1:B0D6 08 05 0E 01 	.db Facing.Right, 5, TILEMAP_HEIGHT-1, Type.Body
+  817 D1:B0DA 08 06 0E 01 	.db Facing.Right, 6, TILEMAP_HEIGHT-1, Type.Body
+  818 D1:B0DE 08 07 0E 01 	.db Facing.Right, 7, TILEMAP_HEIGHT-1, Type.Body
+  819 D1:B0E2 -  -  -  -  
+  820 D1:B0E2 -  -  -  -  	; Snake Render Check
+  821 D1:B0E2 -  -  -  -  	; .db Facing.Up, 8, TILEMAP_HEIGHT-1, Type.Body
+  822 D1:B0E2 -  -  -  -  	; .db Facing.Up, 8, TILEMAP_HEIGHT-2, Type.Body
+  823 D1:B0E2 -  -  -  -  	; .db Facing.Up, 8, TILEMAP_HEIGHT-3, Type.Body
+  824 D1:B0E2 -  -  -  -  	; .db Facing.Left, 8, TILEMAP_HEIGHT-4, Type.Body
+  825 D1:B0E2 -  -  -  -  	
+  826 D1:B0E2 -  -  -  -  	; .db Facing.Left, 7, TILEMAP_HEIGHT-4, Type.Body
+  827 D1:B0E2 -  -  -  -  	; .db Facing.Left, 6, TILEMAP_HEIGHT-4, Type.Body
+  828 D1:B0E2 -  -  -  -  	; .db Facing.Down, 5, TILEMAP_HEIGHT-4, Type.Body
+  829 D1:B0E2 -  -  -  -  
+  830 D1:B0E2 -  -  -  -  	; .db Facing.Down, 5, TILEMAP_HEIGHT-3, Type.Body
+  831 D1:B0E2 -  -  -  -  	; .db Facing.Right, 5, TILEMAP_HEIGHT-2, Type.Body
+  832 D1:B0E2 -  -  -  -  
+  833 D1:B0E2 -  -  -  -  	; .db Facing.Up, 6, TILEMAP_HEIGHT-2, Type.Body
+  834 D1:B0E2 -  -  -  -  	; .db Facing.Right, 6, TILEMAP_HEIGHT-3, Type.Body
+  835 D1:B0E2 -  -  -  -  	; .db Facing.Down, 7, TILEMAP_HEIGHT-3, Type.Body
+  836 D1:B0E2 -  -  -  -  
+  837 D1:B0E2 -  -  -  -  
+  838 D1:B0E2 08 08 0E 00 	.db Facing.Right, 8, TILEMAP_HEIGHT-1, Type.Head
+  839 D1:B0E6 00 00 00 00 
               00 00 00 00 
               00 00 00 00 
               00 00 00 00 
@@ -1366,11 +1413,11 @@ Listing for file "src\Snake.ez80"
               00 00 00 00 
               00 00 00 00 
               00 00 00 00 	.fill SnakeSegment_Size*(TILEMAP_AREA - 9), 0			; SnakeSegment[LCD_AREA]
-  796 D1:B523 -  -  -  -  
-  797 D1:B523 -  -  -  -  
-  798 D1:B523 -  -  -  -  ; Extra memory for short-term storage
-  799 D1:B523 -  -  -  -  Data:
-  800 D1:B523 00 00 00 00 
+  840 D1:B572 -  -  -  -  
+  841 D1:B572 -  -  -  -  
+  842 D1:B572 -  -  -  -  ; Extra memory for short-term storage
+  843 D1:B572 -  -  -  -  Data:
+  844 D1:B572 00 00 00 00 
               00 00 00 00 
               00 00 00 00 
               00 00 00 00 

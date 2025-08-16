@@ -252,9 +252,21 @@ HandleKeyPress.Clear:
 	ret
 
 
+;----------------------------------------
+; **Draws that Apple to the LCD_BUFFER**
+;----------------------------------------
+DrawApple:
+	ld hl, (AppVarPointer)
+	ld de, Apple
+	add hl, de
+	ld a, (ApplePos)
+	ld ixl, a
+	ld a, (ApplePos+1)
+	call SetTile
+	ret
 
 ;---------------------------------------
-; **Draws the snake to the LCD_BUFFER**
+; **Draws the Snake to the LCD_BUFFER**
 ;---------------------------------------
 DrawSnake:
 	ld iy, 0
@@ -424,6 +436,7 @@ MoveSnake:
 	ld a, (SnakeFacing)
 	ld (SnakeFacingPrevious), a
 
+	; Set old tail to a black tile
 	ld hl, (AppVarPointer)
 	ld bc, BlackTile
 	add hl, bc
@@ -433,6 +446,8 @@ MoveSnake:
 	ld a, (iy+SnakeSegment.Pos.Y)				; typeof(iy) = SnakeSegment.Y
 	call SetTile
 
+
+	; Get head pointer
 	ld bc, (SnakeLength)
 	dec bc										; Otherwise off-by-one error, reads 3 bytes farther than its supposed to
 	ld a, 3
@@ -442,6 +457,7 @@ MoveSnake:
 	add hl, bc									; hl = head SnakeSegment**
 	ld (Data+3), hl								; Save head SnakeSegment**
 
+	; Set old head direction
 	ld ix, (hl)									; ix = head SnakeSegment*
 	ld a, (SnakeFacing)
 	ld (ix+SnakeSegment.Facing), a				; Set the old head to be facing the right direction (do this before the copy)
@@ -449,7 +465,6 @@ MoveSnake:
 	; Create new head
 	ld de, (hl)									; Copy head SnakeSegment** into de
 	ld hl, (hl)									; Copy head SnakeSegment** into hl
-
 	ld bc, SnakeSegment_Size
 	add hl, bc									; Add offset
 	ex de, hl									; Can't do "add de, bc"
@@ -459,23 +474,9 @@ MoveSnake:
 	; Set old head to be a body tile
 	ld (ix+SnakeSegment.Type), Type.Body		; Set the old head to be a body
 
-	; Shift all of the pointers up by 1
-	ld hl, Snake
-	inc hl
-	inc hl
-	inc hl
-	ld de, Snake
-	ld bc, (Data)								; Get mul result
-	ldir
-
-	; Set new head pointer
-	ld hl, (Data+6)								; Load the new pointer
-	ld ix, (Data+3)								; Copy head SnakeSegment** into ix
-	ld (ix), hl									; Set the new pointer
 
 	; Move the new head in the correct direction
-	push hl										; ld ix, hl
-	pop ix
+	ld ix, (Data+6)								; Load the new pointer
 	ld de, 0
 	ld a, (ix+SnakeSegment.Facing)
 	cp Facing.Up
@@ -496,7 +497,7 @@ MoveSnake.Up:
 	jr MoveSnake.Vertical
 MoveSnake.Down:
 	ld a, (ix+SnakeSegment.Pos.Y)
-	ld c, TILEMAP_HEIGHT-1								; -1 because coords are 0-based
+	ld c, TILEMAP_HEIGHT-1							; -1 because coords are 0-based
 	cp c
 	jp z, YouDied
 	ld b, 1h
@@ -514,7 +515,7 @@ MoveSnake.Left:
 	jr MoveSnake.Horizontal
 MoveSnake.Right:
 	ld a, (ix+SnakeSegment.Pos.X)
-	ld c, TILEMAP_WIDTH-1								; -1 because coords are 0-based
+	ld c, TILEMAP_WIDTH-1							; -1 because coords are 0-based
 	cp c
 	jp z, YouDied
 	ld b, 1h
@@ -524,7 +525,48 @@ MoveSnake.Horizontal:
 
 MoveSnake.DoneMoveHead:
 
-	ld iy, (Data+6)									; typeof(iy) = SnakeSegment*
+	; Check if there's an apple
+	ld iy, (Data+6)								; typeof(iy) = SnakeSegment*
+	ld d, (iy+SnakeSegment.Pos.X)
+	ld e, (iy+SnakeSegment.Pos.Y)
+
+	ld hl, (ApplePos)
+	scf
+	ccf
+	sbc hl, de
+	jr z, MoveSnake.Apple
+
+; No Apple
+	; Shift all of the pointers up by 1
+	ld hl, Snake
+	inc hl
+	inc hl
+	inc hl
+	ld de, Snake
+	ld bc, (Data)								; Get mul result
+	ldir
+	
+	; Set new head pointer
+	ld hl, (Data+6)								; Load the new pointer
+	ld ix, (Data+3)								; Copy head SnakeSegment** into ix
+	ld (ix), hl									; Set the new pointer
+
+	jr MoveSnake.AppleDone
+MoveSnake.Apple:
+	; Set new head pointer
+	ld hl, (Data+6)								; Load the new pointer
+	ld ix, (Data+3)								; Copy head SnakeSegment** into ix
+	ld (ix+3), hl								; Set the new pointer
+
+	; Increase length
+	ld hl, (SnakeLength)
+	inc hl
+	ld (SnakeLength), hl
+MoveSnake.AppleDone:
+
+	; Set up to check overlap
+	ld iy, (Data+6)								; typeof(iy) = SnakeSegment*
+	ld de, 0									; de is 24-bit, so make sure the high-order byte is 0
 	ld d, (iy+SnakeSegment.Pos.X)
 	ld e, (iy+SnakeSegment.Pos.Y)
 	ld ix, (Snake)
@@ -542,22 +584,22 @@ MoveSnake.CheckOverlapping:
 	ld l, (ix+SnakeSegment.Pos.Y)
  
 
-	scf												; Reset carry
+	scf											; Reset carry
 	ccf
 	sbc hl, de
-	jp z, YouDied
-	inc ix											; Move to next segment pointer
+	jp z, YouDied								; Check if head overlapping with segment
+	inc ix										; Move to next segment pointer
 	inc ix
 	inc ix
 	inc ix
 
-	push ix											; ld bc, ix
+	push ix										; ld bc, ix
 	pop bc
-	ld hl, (Data+6)									; Load the pointer to the segment before the head
-	scf												; Reset carry
+	ld hl, (Data+6)								; Load the pointer to the segment before the head
+	scf											; Reset carry
 	ccf
-	sbc hl, bc										; cp hl, bc
-	jr nz, MoveSnake.CheckOverlapping
+	sbc hl, bc									; cp hl, bc
+	jr nz, MoveSnake.CheckOverlapping			; If current segment is not the last body segment, loop again
 
 
 	; Set the new tail to be a tail
@@ -566,7 +608,6 @@ MoveSnake.CheckOverlapping:
 
 
 	ret
-
 
 
 ; TODO: Implement this function
@@ -741,6 +782,7 @@ PreviousTime:
 ApplePos:
 	.db 0	; X
 	.db 0	; Y
+	.db 0	; Padding
 ; Snake
 SnakeFacing:
 	.dl Facing.Right
