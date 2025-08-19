@@ -81,6 +81,12 @@ Start:
 	call GetAppVar
 	call ResetScreen
 	call DrawSnake
+
+	; Apple stuff
+	call _RandInit
+	nop					; Mark PlaceApple
+	call PlaceApple
+	call DrawApple
 	
 	
 ;--------------------
@@ -88,6 +94,7 @@ Start:
 ;--------------------
 Main:
 	; Get key press
+	ld iy, flags					; Magic number or else it freezes
 	call _GetCSC
 	or a							; Check if a key was actually pressed
 	call nz, HandleKeyPress
@@ -106,6 +113,15 @@ Main:
 	call MoveSnake
 	call DrawSnake
 
+	ld a, (ReplaceApple)
+	or a
+	jr z, Main.DontMoveApple
+	xor a
+	ld (ReplaceApple), a
+	call PlaceApple
+	call DrawApple
+Main.DontMoveApple:
+
 
 	jr Main
 
@@ -117,6 +133,9 @@ ErrorAppVarArchived:
 	jr Error
 ErrorInvalidDirection:
 	ld hl, ErrorInvalidDirectionStr
+	jr Error
+ErrorCantFindApplePos:
+	ld hl, ErrorCantFindApplePosStr
 	jr Error
 YouDied:
 	ld hl, YouDiedStr
@@ -150,7 +169,7 @@ StartTimer:
 	ld hl, 0								; Disable all timers (because its easier than disabling just timer 1)
 	ld (TIMER_CTRL_REG), hl		
 
-	ld hl, 00471Ch							; 18204(0000471Ch) ticks / 36.4 KHz(I have no idea where this number comes from, it just works, ok?) equals 0.5 seconds (little-endian)
+	ld hl, 002AAAh							; 18204(0000471Ch) ticks / 36.4 KHz(I have no idea where this number comes from, it just works, ok?) equals 0.5 seconds (little-endian)
 	ld (TIMER1_COUNTER), hl
 	ld (TIMER1_RESET_VAL), hl
 	ld a, 00h
@@ -427,7 +446,7 @@ BlitScreen:
 
 
 
-; TODO: Finish this function
+
 ;----------------------------------
 ;**Moves the snake 1 Tile forward**
 ;----------------------------------
@@ -450,21 +469,30 @@ MoveSnake:
 	; Get head pointer
 	ld bc, (SnakeLength)
 	dec bc										; Otherwise off-by-one error, reads 3 bytes farther than its supposed to
-	ld a, 3
+	ld a, 3										; Size of a pointer/mem addr
 	call mul
 	ld (Data), hl								; Save mul result
 	ld bc, Snake
 	add hl, bc									; hl = head SnakeSegment**
 	ld (Data+3), hl								; Save head SnakeSegment**
 
+	; ResetSegments
+	ld hl, (hl)
+	ld de, SegmentsEnd
+	call _CPHLDE
+	jr nz, MoveSnake.KeepSegments
+	call ResetSegments
+MoveSnake.KeepSegments:
+
+	ld hl, (Data+3)
 	; Set old head direction
 	ld ix, (hl)									; ix = head SnakeSegment*
 	ld a, (SnakeFacing)
 	ld (ix+SnakeSegment.Facing), a				; Set the old head to be facing the right direction (do this before the copy)
 	
 	; Create new head
-	ld de, (hl)									; Copy head SnakeSegment** into de
-	ld hl, (hl)									; Copy head SnakeSegment** into hl
+	ld de, (hl)									; Copy head SnakeSegment* into de
+	ld hl, (hl)									; Copy head SnakeSegment* into hl
 	ld bc, SnakeSegment_Size
 	add hl, bc									; Add offset
 	ex de, hl									; Can't do "add de, bc"
@@ -527,13 +555,11 @@ MoveSnake.DoneMoveHead:
 
 	; Check if there's an apple
 	ld iy, (Data+6)								; typeof(iy) = SnakeSegment*
-	ld d, (iy+SnakeSegment.Pos.X)
-	ld e, (iy+SnakeSegment.Pos.Y)
+	ld d, (iy+SnakeSegment.Pos.Y)
+	ld e, (iy+SnakeSegment.Pos.X)
 
 	ld hl, (ApplePos)
-	scf
-	ccf
-	sbc hl, de
+	call _CpHLDE
 	jr z, MoveSnake.Apple
 
 ; No Apple
@@ -553,6 +579,10 @@ MoveSnake.DoneMoveHead:
 
 	jr MoveSnake.AppleDone
 MoveSnake.Apple:
+	; Randomize new apple position
+	ld a, 1
+	ld (ReplaceApple), a
+
 	; Set new head pointer
 	ld hl, (Data+6)								; Load the new pointer
 	ld ix, (Data+3)								; Copy head SnakeSegment** into ix
@@ -569,7 +599,7 @@ MoveSnake.AppleDone:
 	ld de, 0									; de is 24-bit, so make sure the high-order byte is 0
 	ld d, (iy+SnakeSegment.Pos.X)
 	ld e, (iy+SnakeSegment.Pos.Y)
-	ld ix, (Snake)
+	ld ix, (Snake)								; typeof(ix) = SnakeSegment*
 
 	; Don't count the head
 	dec iy
@@ -584,9 +614,7 @@ MoveSnake.CheckOverlapping:
 	ld l, (ix+SnakeSegment.Pos.Y)
  
 
-	scf											; Reset carry
-	ccf
-	sbc hl, de
+	call _CpHLDE
 	jp z, YouDied								; Check if head overlapping with segment
 	inc ix										; Move to next segment pointer
 	inc ix
@@ -610,12 +638,103 @@ MoveSnake.CheckOverlapping:
 	ret
 
 
-; TODO: Implement this function
+;-----------------------------------------
+; Places the Apple on a random empty tile
+; Destroys: All, OP1, OP2, OP3, Data 0-5
+;-----------------------------------------
+PlaceApple:
+	; Get random index
+	call randomTile
+	ld (Data), hl							; Save random index
+	
+PlaceApple.CheckOverlap.Init:
+	; Initialize registers for Snake collision
+	ld ix, Snake
+	ld bc, (SnakeLength)
+	;inc bc									; Don't. Causes off-by-1 error
+PlaceApple.CheckOverlap:
+	call PlaceApple.GetXY
+	dec bc
+
+	ld iy, (ix)
+	ld de, 0								; de is 3 bytes, so make sure the high-order byte is 0'd
+	ld d, (iy+SnakeSegment.Pos.X)
+	ld e, (iy+SnakeSegment.Pos.Y)
+	call _CpHLDE
+	jr z, PlaceApple.CheckOverlap.Overlap
+	; Not overlapping
+	push bc
+	pop de
+	ld hl, 0
+	call _CpHLDE
+	ld hl, (Data)
+	jr z, PlaceApple.IndexFound
+	
+	inc ix
+	inc ix
+	inc ix
+	jr PlaceApple.CheckOverlap
+PlaceApple.CheckOverlap.Overlap:
+	ld hl, (Data)
+	inc hl
+	ld (Data), hl
+	jr PlaceApple.CheckOverlap.Init
+
+PlaceApple.IndexFound:
+	call PlaceApple.GetXY
+	ld a, h
+	ld (ApplePos), a							; Save new apple pos
+	ld a, l
+	ld (ApplePos+1), a
+	ret
+
+; input - HL - index
+; output - h <- X, l <- Y
+; destroys: a
+PlaceApple.GetXY:
+	; Get X, Y
+	ld a, TILEMAP_WIDTH
+	call _DivHLByA			; hl <- Y, a <- X
+	; h <- X, l <- Y
+	ld h, a
+	ret
+
+
+
 ;---------------------------------------------------------------------------------------
 ; **Resets the Snake Segments so that they are a the beginning of the reserved memory**
+; Destroys: All
 ;---------------------------------------------------------------------------------------
 ResetSegments:
-ret
+	ld bc, (SnakeLength)
+	ld a, SnakeSegment_Size
+	call mul
+
+	ld b, h						; ld bc, hl
+	ld c, l
+	ld hl, (Snake)
+	ld de, Segments
+	ldir						; Move all Segments
+	
+	ld de, 3
+	ld ix, Snake
+	ld bc, 4
+	ld iy, Segments
+	ld hl, (SnakeLength)
+ResetSegments.PointerLoop:
+	ld (ix), iy
+	
+	add ix, de						; add ix, 3 because 3 is size of pointer/mem addr
+	add iy, bc						; add bc, 4 because SnakeSegment_Size = 4
+
+	dec hl
+	ld a, h
+	and a
+	jr nz, ResetSegments.PointerLoop
+	ld a, l
+	and a
+	jr nz, ResetSegments.PointerLoop
+	ret
 
 ;---------------------------------------------------
 ; **Moves a given tile into the given render buffer**
@@ -677,7 +796,7 @@ SetTile.loop:
 
 ;--------------------------------------------------------------
 ; **HL = A * BC**
-; Destroys: de, ix
+; Destroys: de, DataEnd 3-0
 ; Params:
 ;	- A: first number - 8-bit
 ;	- BC: second number - 16-bit
@@ -685,55 +804,135 @@ SetTile.loop:
 ;	- HL: result - 24-bit
 ;--------------------------------------------------------------
 mul:
-	ld h, b
-	ld l, a
-	call _HtimesL
-
-	ld (Data), hl
-	ld ix, Data
-	
-	; de <<= 8
-	sla (ix)
-	rl (ix+1)
-	rl (ix+2)
-
-	sla (ix)
-	rl (ix+1)
-	rl (ix+2)
-	
-	sla (ix)
-	rl (ix+1)
-	rl (ix+2)
-	
-	sla (ix)
-	rl (ix+1)
-	rl (ix+2)
-	
-	sla (ix)
-	rl (ix+1)
-	rl (ix+2)
-	
-	sla (ix)
-	rl (ix+1)
-	rl (ix+2)
-	
-	sla (ix)
-	rl (ix+1)
-	rl (ix+2)
-	
-	sla (ix)
-	rl (ix+1)
-	rl (ix+2)
-	ld de, (ix)
-	push de
-
 	ld h, c
 	ld l, a
-	call _HtimesL
+	mlt hl
 
-	pop de
+	ld d, b
+	ld e, a
+	mlt de
+	xor a
+	ld (DataEnd-4), a
+	ld (DataEnd-3), de			; shl 8
+	ld de, (DataEnd-4)
+
 	add hl, de
 	ret
+
+
+
+;---------------------------------
+; **Generates a random intager between HL and DE**
+; Destroys: hl, de, af, ix, bc, Data 0-12
+; Outputs:
+;	- HL: Result - 16-bit
+;---------------------------------
+randomTile:
+	; Reset Data
+	ld hl, 0
+	ld (Data), hl
+	ld (Data+3), hl
+	ld (Data+6), hl
+	ld (Data+9), hl
+	call xorshift
+
+	; Normalize
+	ld (Data), hl
+	ld ix, Data
+
+	; Multiply by 300(012Ch)
+	ld h, 2Ch
+	mlt hl
+	ld (ix+3), hl
+	
+	ld hl, (Data)
+	ld l, 2Ch
+	mlt hl
+	ld (ix+7), hl
+
+
+	; here, would just need to multiply by 1 and shift 8
+	ld hl, (Data)
+	ld (ix+10), hl
+
+	ld hl, (Data+3)
+	ld de, (Data+6)
+	add hl, de
+	ld de, (Data+9)
+	add hl, de
+
+	ld (ix), hl
+	ld bc, 0
+	ld (ix+3), bc
+	jr nc, randomTile.NoCarry
+	ld (ix+3), 1
+
+randomTile.NoCarry:
+	ld hl, (ix+2)
+	ret
+
+
+
+;----------------------------------
+; Uses the Xorshift PRNG algorithm
+; Destroys: af, bc, de
+; Output: hl, RNGSeed
+;----------------------------------
+xorshift:
+	ld bc, (RNGSeed)
+	ld d, b								; ld de, bc
+	ld e, c
+	ld a, 7
+	call xorshift.shl
+	call xorshift.xor
+
+	ld d, b								; ld de, bc
+	ld e, c
+	ld a, 9
+	call xorshift.shr
+	call xorshift.xor
+
+	ld d, b								; ld de, bc
+	ld e, c
+	ld a, 8
+	call xorshift.shl
+	call xorshift.xor
+
+	ld hl, 009E37h
+	add hl, de
+
+	ld (RNGSeed), hl
+	ret
+
+
+xorshift.shl:
+	sla e
+	rl d
+	dec a
+
+	cp 0FFh
+	jr nz, xorshift.shl
+	ret
+xorshift.shr:
+	srl d
+	rr e
+	dec a
+
+	cp 0FFh
+	jr nz, xorshift.shr
+	ret
+
+xorshift.xor:
+	; Xor upper byte
+	ld a, d
+	xor b
+	ld d, a
+	; xor lower byte
+	ld a, e
+	xor c
+	ld e, a
+	ret
+
 
 
 
@@ -758,6 +957,8 @@ ErrorAppVarNotFoundStr:
 	.db "ERROR, AppVar not found", 0
 ErrorInvalidDirectionStr:
 	.db "ERROR, The current movement direction has been set to an invalid value", 0
+ErrorCantFindApplePosStr:
+	.db "ERROR, The current movement direction has been set to an invalid value", 0
 YouDiedStr:
 	.db "You Died", 0
 
@@ -778,7 +979,10 @@ AppVarPointer:
 PreviousTime:
 	.db 0FFh
 
-
+RNGSeed:
+	.dl 00DD02h			; Random number from the google RNG
+ReplaceApple:
+	.db 0
 ApplePos:
 	.db 0	; X
 	.db 0	; Y
@@ -834,9 +1038,12 @@ Segments:
 
 
 	.db Facing.Right, 8, TILEMAP_HEIGHT-1, Type.Head
-	.fill SnakeSegment_Size*(TILEMAP_AREA - 9), 0			; SnakeSegment[LCD_AREA]
-
+	; -10 because 9 pre-defined segments, and 1 segment after "SegmentsEnd"
+	.fill SnakeSegment_Size*(TILEMAP_AREA - 10)				; SnakeSegment[TILEMAP_AREA]
+SegmentsEnd:
+	.fill SnakeSegment_Size
 
 ; Extra memory for short-term storage
 Data:
 	.fill 64, 0
+DataEnd:

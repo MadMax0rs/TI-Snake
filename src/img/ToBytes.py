@@ -9,6 +9,7 @@
 import sys
 from PIL import Image
 import numpy as np
+import os
 
 DB = False
 FILL = True
@@ -64,8 +65,7 @@ def PickInstruction(currentByte: np.uint8, numBytes: int, currentStr: str) -> st
 # Store 
 OutStrs: str = ""
 AppVarStr: str = ""
-
-Atlas = Image.open("D:\\TI-84PlusCE\\Games\\MyGames\\ASM\\Snake\\src\\img\\tileset.png")
+Atlas = Image.open(f"{os.path.dirname(__file__)}\\tileset.png")
 
 # Put the RGBA data into a 3-dimensional array.
 # ex. pixelData[pixelX, pixelY, ColorChannel]
