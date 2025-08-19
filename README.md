@@ -5,7 +5,6 @@
 - If you have any questions or feedback on how I format this repo or any of my code, your comment would be greatly appreciated!
 
 # Download instructions:
-No releases yet. Sorry!
 
 1. You will need a program on your calculator to run asm code, I prefer [arTIfiCE](https://github.com/MadMax0rs/TI-84-Plus-CE-Python-Jailbreak)
 2. Download the latest .zip file and extract it into a folder
